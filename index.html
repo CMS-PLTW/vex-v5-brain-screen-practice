@@ -1629,6 +1629,22 @@ function printText(text){
   const characters=Array.from(content);
 
   bctx.save();
+
+  /*
+    On the V5 Brain, the current fill color is the background behind text.
+    Paint the exact character-cell area first, including spaces. A transparent
+    fill leaves the existing screen pixels unchanged.
+  */
+  if(state.fill!=="TRANSPARENT" && characters.length){
+    bctx.fillStyle=colors[state.fill];
+    bctx.fillRect(
+      x,
+      y,
+      Math.min(480-x,characters.length*cellWidth),
+      cellHeight
+    );
+  }
+
   bctx.fillStyle=colors[state.pen];
   bctx.textAlign="left";
   bctx.textBaseline="alphabetic";

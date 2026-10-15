@@ -553,6 +553,7 @@ let practiceGrid="";
 let liveTimer=null;
 let nextBlockId=1;
 let blockProgram=[];
+let vexProjectMetadata=null;
 
 let pythonUndoStack=[];
 let pythonRedoStack=[];
@@ -762,26 +763,86 @@ function normalizeLoadedBlocks(blocks){
 
 function projectData(){
   return{
-    version:13,
+    version:14,
     name:projectName.value,
     activeMode,
     pythonCode:editor.value,
     code:editor.value,
     blocks:cloneBlocks(),
-    practiceGrid
+    practiceGrid,
+    vexProjectMetadata
   };
 }
 
-function applyProjectData(data={}){
-  projectName.value=typeof data.name==="string"?data.name:"My Brain Screen";
-  editor.value=typeof data.pythonCode==="string"
-    ?data.pythonCode
-    :typeof data.code==="string"
-      ?data.code
-      :starterCode();
+function vexProjectFileData(){
+  const metadata=vexProjectMetadata || {};
+  return{
+    mode:"Text",
+    textContent:editor.value,
+    textLanguage:"python",
+    rconfig:Array.isArray(metadata.rconfig)?metadata.rconfig:[],
+    slot:Number.isFinite(Number(metadata.slot))?Number(metadata.slot):1,
+    platform:"V5",
+    sdkVersion:metadata.sdkVersion || "20220726.10.00.00",
+    appVersion:metadata.appVersion || "4.68.0",
+    minVersion:metadata.minVersion || "3.0.0",
+    fileFormat:metadata.fileFormat || "1.2.0",
+    icon:metadata.icon || "",
+    targetBrainGen:metadata.targetBrainGen || "First",
+    v5Sounds:Array.isArray(metadata.v5Sounds)?metadata.v5Sounds:[],
+    v5SoundsEnabled:Boolean(metadata.v5SoundsEnabled),
+    target:metadata.target || "Physical",
+    screenSimulator:{
+      version:14,
+      name:projectName.value,
+      activeMode,
+      blocks:cloneBlocks(),
+      practiceGrid
+    }
+  };
+}
+
+function applyProjectData(data={},options={}){
+  const isVexPython=data.mode==="Text" &&
+    data.textLanguage==="python" &&
+    typeof data.textContent==="string";
+  const simulatorData=isVexPython && data.screenSimulator && typeof data.screenSimulator==="object"
+    ?data.screenSimulator
+    :data;
+  const fileProjectName=typeof options.fileName==="string"
+    ?options.fileName.replace(/\.v5python$/i,"")
+    :"My Brain Screen";
+
+  projectName.value=typeof simulatorData.name==="string"
+    ?simulatorData.name
+    :fileProjectName;
+  editor.value=isVexPython
+    ?data.textContent
+    :typeof data.pythonCode==="string"
+      ?data.pythonCode
+      :typeof data.code==="string"
+        ?data.code
+        :starterCode();
+  vexProjectMetadata=isVexPython
+    ?{
+      rconfig:data.rconfig,
+      slot:data.slot,
+      sdkVersion:data.sdkVersion,
+      appVersion:data.appVersion,
+      minVersion:data.minVersion,
+      fileFormat:data.fileFormat,
+      icon:data.icon,
+      targetBrainGen:data.targetBrainGen,
+      v5Sounds:data.v5Sounds,
+      v5SoundsEnabled:data.v5SoundsEnabled,
+      target:data.target
+    }
+    :(data.vexProjectMetadata && typeof data.vexProjectMetadata==="object"
+      ?data.vexProjectMetadata
+      :null);
   previousEditorValue=editor.value;
-  blockProgram=normalizeLoadedBlocks(data.blocks);
-  practiceGrid=typeof data.practiceGrid==="string"?data.practiceGrid:"";
+  blockProgram=normalizeLoadedBlocks(simulatorData.blocks);
+  practiceGrid=typeof simulatorData.practiceGrid==="string"?simulatorData.practiceGrid:"";
   if(practiceGrid!=="DRAW30" && !fonts[practiceGrid])practiceGrid="";
   pythonUndoStack=[];
   pythonRedoStack=[];
@@ -790,7 +851,7 @@ function applyProjectData(data={}){
   updateLineNumbers();
   renderBlockProgram();
   updateGridSelection();
-  switchMode(data.activeMode==="blocks"?"blocks":"python",{run:false});
+  switchMode(simulatorData.activeMode==="blocks"?"blocks":"python",{run:false});
   updateHistoryButtons();
   byId("exampleSelect").value="";
 }
@@ -1936,11 +1997,21 @@ function explainPythonError(line,lineNumber){
 function runPythonProgram(){
   beginProgram();
   const errors=[];
+  let inGeneratedConfiguration=false;
 
   editor.value.split("\n").forEach((raw,index)=>{
     const line=raw.trim();
     const lineNumber=index+1;
-    if(!line || line.startsWith("#") || line==="from vex import *" || /^brain\s*=\s*Brain\s*\(\s*\)$/.test(line))return;
+    if(/^#region\s+VEXcode Generated Robot Configuration$/i.test(line)){
+      inGeneratedConfiguration=true;
+      return;
+    }
+    if(/^#endregion\s+VEXcode Generated Robot Configuration$/i.test(line)){
+      inGeneratedConfiguration=false;
+      return;
+    }
+    if(inGeneratedConfiguration)return;
+    if(!line || line.startsWith("#") || /^from\s+\S+\s+import\s+/.test(line) || /^import\s+/.test(line) || /^brain\s*=\s*Brain\s*\(\s*\)$/.test(line))return;
 
     let match=line.match(/^brain\.screen\.set_font\(FontType\.(MONO12|MONO15|MONO20|MONO30|MONO40|MONO60|PROP20|PROP30|PROP40|PROP60)\)$/);
     if(match){state.font=match[1];return;}
@@ -2074,7 +2145,7 @@ function downloadBlob(name,blob){
 }
 
 byId("saveBtn").addEventListener("click",()=>{
-  downloadBlob(safeName()+".v5python",new Blob([JSON.stringify(projectData(),null,2)],{type:"application/json"}));
+  downloadBlob(safeName()+".v5python",new Blob([JSON.stringify(vexProjectFileData(),null,2)],{type:"application/json"}));
 });
 
 byId("openBtn").addEventListener("click",()=>{
@@ -2087,12 +2158,13 @@ fileInput.addEventListener("change",async event=>{
   if(!file)return;
   try{
     const data=JSON.parse(await file.text());
-    applyProjectData(data);
+    applyProjectData(data,{fileName:file.name});
     runImmediately();
+    byId("workspaceMessage").textContent="Opened "+file.name+" successfully.";
   }
   catch{
     byId("workspaceMessage").textContent="Could not open project file.";
-    showCodeCheck(["The selected file is not a valid VEX screen project."]);
+    showCodeCheck(["The selected file is not a valid VEXcode V5 Python or simulator project."]);
     clearErrorHighlights();
     setCompactStatus("File Error","error");
   }

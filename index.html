@@ -258,8 +258,8 @@ canvas{display:block;width:100%;aspect-ratio:2/1;border:1px solid #020303;border
     <button id="undoBtn" disabled>Undo</button>
     <button id="redoBtn" disabled>Redo</button>
     <button id="newBtn">New</button>
-    <button id="saveBtn">Save Project File</button>
-    <button id="openBtn">Open Project File</button>
+    <button id="saveBtn">Save .v5python</button>
+    <button id="openBtn">Open .v5python</button>
     <button id="snapshotBtn">Download Project Snapshot</button>
 
     <div class="grid-control">
@@ -283,7 +283,7 @@ canvas{display:block;width:100%;aspect-ratio:2/1;border:1px solid #020303;border
       </div>
     </div>
 
-    <input id="projectFileInput" class="file-input" type="file" accept=".json,.v5screen,.v5text">
+    <input id="projectFileInput" class="file-input" type="file" accept=".v5python,.v5screen,.v5text,.json">
   </div>
 
   <div class="main">
@@ -762,7 +762,7 @@ function normalizeLoadedBlocks(blocks){
 
 function projectData(){
   return{
-    version:12,
+    version:13,
     name:projectName.value,
     activeMode,
     pythonCode:editor.value,
@@ -2074,7 +2074,7 @@ function downloadBlob(name,blob){
 }
 
 byId("saveBtn").addEventListener("click",()=>{
-  downloadBlob(safeName()+".v5screen",new Blob([JSON.stringify(projectData(),null,2)],{type:"application/json"}));
+  downloadBlob(safeName()+".v5python",new Blob([JSON.stringify(projectData(),null,2)],{type:"application/json"}));
 });
 
 byId("openBtn").addEventListener("click",()=>{

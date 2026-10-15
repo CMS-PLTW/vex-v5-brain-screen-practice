@@ -780,7 +780,12 @@ function vexProjectFileData(){
     mode:"Text",
     textContent:editor.value,
     textLanguage:"python",
-    rconfig:Array.isArray(metadata.rconfig)?metadata.rconfig:[],
+    hardwareTarget:metadata.hardwareTarget || "brain",
+    robotConfig:Array.isArray(metadata.robotConfig)
+      ?metadata.robotConfig
+      :Array.isArray(metadata.rconfig)
+        ?metadata.rconfig
+        :[],
     slot:Number.isFinite(Number(metadata.slot))?Number(metadata.slot):1,
     platform:"V5",
     sdkVersion:metadata.sdkVersion || "20220726.10.00.00",
@@ -791,6 +796,7 @@ function vexProjectFileData(){
     targetBrainGen:metadata.targetBrainGen || "First",
     v5Sounds:Array.isArray(metadata.v5Sounds)?metadata.v5Sounds:[],
     v5SoundsEnabled:Boolean(metadata.v5SoundsEnabled),
+    aiVisionSettings:metadata.aiVisionSettings,
     target:metadata.target || "Physical",
     screenSimulator:{
       version:14,
@@ -825,7 +831,9 @@ function applyProjectData(data={},options={}){
         :starterCode();
   vexProjectMetadata=isVexPython
     ?{
+      robotConfig:data.robotConfig,
       rconfig:data.rconfig,
+      hardwareTarget:data.hardwareTarget,
       slot:data.slot,
       sdkVersion:data.sdkVersion,
       appVersion:data.appVersion,
@@ -835,6 +843,7 @@ function applyProjectData(data={},options={}){
       targetBrainGen:data.targetBrainGen,
       v5Sounds:data.v5Sounds,
       v5SoundsEnabled:data.v5SoundsEnabled,
+      aiVisionSettings:data.aiVisionSettings,
       target:data.target
     }
     :(data.vexProjectMetadata && typeof data.vexProjectMetadata==="object"

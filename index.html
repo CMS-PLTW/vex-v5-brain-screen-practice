@@ -135,7 +135,9 @@ canvas{display:block;width:100%;aspect-ratio:2/1;border:1px solid #020303;border
 .workspace-title{display:flex;justify-content:space-between;align-items:center;padding:7px 9px;border-bottom:1px solid #d6dce3;background:white;font-size:13px;font-weight:bold}
 .workspace-title-actions{display:flex;align-items:center;gap:7px}
 .mode-badge{padding:3px 7px;border-radius:10px;background:#e8eef8;color:#245a9b;font-size:9px;text-transform:uppercase;letter-spacing:.04em}
-.example-select,.clear-blocks-btn{height:25px;padding:2px 7px;border:1px solid #cfd6df;border-radius:6px;background:white;font-size:10px}
+.example-select,.clear-blocks-btn,.region-fold-btn{height:25px;padding:2px 7px;border:1px solid #cfd6df;border-radius:6px;background:white;font-size:10px}
+.region-fold-btn{color:#334155;white-space:nowrap}
+.region-fold-btn:hover{background:#f0f3f7}
 .example-select{max-width:132px;color:#334155}
 .filename-bar{display:flex;justify-content:space-between;padding:7px 9px;background:#242b34;color:#e6ebf1;font:10px Consolas,monospace}
 .editor-shell{display:grid;grid-template-columns:40px minmax(0,1fr);height:var(--workspace-height);background:#161b22}
@@ -362,6 +364,7 @@ canvas{display:block;width:100%;aspect-ratio:2/1;border:1px solid #020303;border
         <div class="workspace-title">
           <span>Coding Workspace</span>
           <div class="workspace-title-actions">
+            <button id="regionFoldBtn" class="region-fold-btn" hidden>Collapse setup</button>
             <span id="workspaceModeBadge" class="mode-badge">Python</span>
             <button id="clearBlocksBtn" class="clear-blocks-btn" hidden>Clear Blocks</button>
             <select id="exampleSelect" class="example-select" aria-label="Load an example program">
@@ -554,6 +557,7 @@ let liveTimer=null;
 let nextBlockId=1;
 let blockProgram=[];
 let vexProjectMetadata=null;
+let pythonRegionFold=null;
 
 let pythonUndoStack=[];
 let pythonRedoStack=[];
@@ -766,8 +770,8 @@ function projectData(){
     version:14,
     name:projectName.value,
     activeMode,
-    pythonCode:editor.value,
-    code:editor.value,
+    pythonCode:getFullPythonCode(),
+    code:getFullPythonCode(),
     blocks:cloneBlocks(),
     practiceGrid,
     vexProjectMetadata
@@ -778,7 +782,7 @@ function vexProjectFileData(){
   const metadata=vexProjectMetadata || {};
   return{
     mode:"Text",
-    textContent:editor.value,
+    textContent:getFullPythonCode(),
     textLanguage:"python",
     hardwareTarget:metadata.hardwareTarget || "brain",
     robotConfig:Array.isArray(metadata.robotConfig)
@@ -822,6 +826,7 @@ function applyProjectData(data={},options={}){
   projectName.value=typeof simulatorData.name==="string"
     ?simulatorData.name
     :fileProjectName;
+  pythonRegionFold=null;
   editor.value=isVexPython
     ?data.textContent
     :typeof data.pythonCode==="string"
@@ -919,6 +924,7 @@ function switchMode(mode,{run=true}={}){
   byId("menuHeader").textContent=isPython?"Screen ▾":"Screen Blocks ▾";
   byId("cheatBox").style.display="none";
 
+  updateRegionFoldButton();
   updateHistoryButtons();
   if(run)runImmediately();
 }
@@ -1127,6 +1133,59 @@ function updateSyntaxHighlight(){
   syncEditorScroll();
 }
 
+function generatedRegionRange(source){
+  const lines=source.split("\n");
+  const start=lines.findIndex(line=>/^\s*#region\s+VEXcode Generated Robot Configuration\s*$/i.test(line));
+  if(start<0)return null;
+  const relativeEnd=lines.slice(start+1).findIndex(line=>/^\s*#endregion\s+VEXcode Generated Robot Configuration\s*$/i.test(line));
+  if(relativeEnd<0)return null;
+  return{lines,start,end:start+1+relativeEnd};
+}
+
+function getFullPythonCode(){
+  if(!pythonRegionFold)return editor.value;
+  const range=generatedRegionRange(editor.value);
+  if(!range)return editor.value;
+  return[
+    ...range.lines.slice(0,range.start+1),
+    ...pythonRegionFold.body,
+    ...range.lines.slice(range.end)
+  ].join("\n");
+}
+
+function updateRegionFoldButton(){
+  const button=byId("regionFoldBtn");
+  if(activeMode!=="python"){
+    button.hidden=true;
+    return;
+  }
+  const range=generatedRegionRange(editor.value);
+  button.hidden=!pythonRegionFold && !range;
+  button.textContent=pythonRegionFold?"Expand setup":"Collapse setup";
+  button.setAttribute("aria-expanded",String(!pythonRegionFold));
+}
+
+function toggleGeneratedRegion(){
+  if(pythonRegionFold){
+    editor.value=getFullPythonCode();
+    pythonRegionFold=null;
+  }
+  else{
+    const range=generatedRegionRange(editor.value);
+    if(!range)return;
+    const body=range.lines.slice(range.start+1,range.end);
+    pythonRegionFold={body};
+    editor.value=[
+      ...range.lines.slice(0,range.start+1),
+      "# … "+body.length+" generated setup lines hidden — click Expand setup to show …",
+      ...range.lines.slice(range.end)
+    ].join("\n");
+  }
+  previousEditorValue=editor.value;
+  updateLineNumbers();
+  editor.focus();
+}
+
 function updateLineNumbers(){
   const count=editor.value.split("\n").length;
   const fragment=document.createDocumentFragment();
@@ -1138,9 +1197,11 @@ function updateLineNumbers(){
   }
   lineNumbers.replaceChildren(fragment);
   updateSyntaxHighlight();
+  updateRegionFoldButton();
 }
 
 editor.addEventListener("scroll",syncEditorScroll);
+byId("regionFoldBtn").addEventListener("click",toggleGeneratedRegion);
 projectName.addEventListener("input",scheduleAutosave);
 
 /* HISTORY */

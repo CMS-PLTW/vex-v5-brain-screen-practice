@@ -313,6 +313,11 @@ canvas{display:block;width:100%;aspect-ratio:2/1;border:1px solid #020303;border
           <button class="command" data-code="brain.screen.set_fill_color(Color.RED)" data-special="fill"><span class="obj">brain.screen</span>.<span class="method">set_fill_color</span>(<span class="enum">Color.RED</span>)</button>
         </div>
 
+        <div class="section-title">Timing</div>
+        <div class="command-list">
+          <button class="command" data-code="wait(1, SECONDS)"><span class="method">wait</span>(<span class="number">1</span>, <span class="enum">SECONDS</span>)</button>
+        </div>
+
         <div class="section-title">Draw</div>
         <div class="command-list">
           <button class="command" data-code="brain.screen.draw_pixel(0, 0)"><span class="obj">brain.screen</span>.<span class="method">draw_pixel</span>(<span class="number">0</span>, <span class="number">0</span>)</button>
@@ -554,6 +559,7 @@ let state=defaultState();
 let activeMode="python";
 let practiceGrid="";
 let liveTimer=null;
+let programRunId=0;
 let nextBlockId=1;
 let blockProgram=[];
 let vexProjectMetadata=null;
@@ -937,6 +943,7 @@ byId("blocksModeBtn").addEventListener("click",()=>switchMode("blocks"));
 
 function scheduleLiveRun(){
   clearTimeout(liveTimer);
+  programRunId++;
   setUpdatingStatus();
   liveTimer=setTimeout(runActiveProgram,300);
 }
@@ -1991,7 +1998,8 @@ function finishRun(errors){
 /* PROGRAM ENGINES */
 
 function runActiveProgram(){
-  if(activeMode==="python")runPythonProgram();
+  const runId=++programRunId;
+  if(activeMode==="python")runPythonProgram(runId);
   else runBlocksProgram();
 }
 
@@ -2034,8 +2042,11 @@ function explainPythonError(line,lineNumber){
   if(/^[A-Za-z_]\w*\s*=/.test(line)){
     return prefix+"Variables are not supported yet. Use a Screen command directly.";
   }
+  if(/^wait\s*\(/.test(line)){
+    return prefix+"Use wait(1, SECONDS) or wait(500, MSEC).";
+  }
   if(!line.startsWith("brain.screen.")){
-    return prefix+'Start Screen commands with "brain.screen."';
+    return prefix+'Start Screen commands with "brain.screen." or use wait(1, SECONDS).';
   }
   if(!line.endsWith(")")){
     return prefix+"A closing parenthesis is missing.";
@@ -2074,69 +2085,84 @@ function explainPythonError(line,lineNumber){
   return prefix+"Check the command spelling, parentheses, commas, and values.";
 }
 
-function runPythonProgram(){
+async function runPythonProgram(runId){
   beginProgram();
   const errors=[];
   let inGeneratedConfiguration=false;
+  const lines=editor.value.split("\n");
 
-  editor.value.split("\n").forEach((raw,index)=>{
+  for(let index=0;index<lines.length;index++){
+    const raw=lines[index];
     const line=raw.trim();
     const lineNumber=index+1;
     if(/^#region\s+VEXcode Generated Robot Configuration$/i.test(line)){
       inGeneratedConfiguration=true;
-      return;
+      continue;
     }
     if(/^#endregion\s+VEXcode Generated Robot Configuration$/i.test(line)){
       inGeneratedConfiguration=false;
-      return;
+      continue;
     }
-    if(inGeneratedConfiguration)return;
-    if(!line || line.startsWith("#") || /^from\s+\S+\s+import\s+/.test(line) || /^import\s+/.test(line) || /^brain\s*=\s*Brain\s*\(\s*\)$/.test(line))return;
+    if(inGeneratedConfiguration)continue;
+    if(!line || line.startsWith("#") || /^from\s+\S+\s+import\s+/.test(line) || /^import\s+/.test(line) || /^brain\s*=\s*Brain\s*\(\s*\)$/.test(line))continue;
 
-    let match=line.match(/^brain\.screen\.set_font\(FontType\.(MONO12|MONO15|MONO20|MONO30|MONO40|MONO60|PROP20|PROP30|PROP40|PROP60)\)$/);
-    if(match){state.font=match[1];return;}
+    let match=line.match(/^wait\(\s*(\d+(?:\.\d*)?|\.\d+)\s*,\s*(SECONDS|MSEC)\s*\)$/);
+    if(match){
+      updateInfo();
+      drawVisibleScreen();
+      const milliseconds=Number(match[1])*(match[2]==="SECONDS"?1000:1);
+      setCompactStatus("Waiting","updating");
+      byId("brainState").textContent="WAITING";
+      byId("pythonStatus").textContent="Waiting...";
+      byId("workspaceMessage").textContent="Waiting for "+match[1]+" "+(match[2]==="SECONDS"?"second(s).":"millisecond(s).");
+      await new Promise(resolve=>setTimeout(resolve,milliseconds));
+      if(runId!==programRunId)return;
+      continue;
+    }
+
+    match=line.match(/^brain\.screen\.set_font\(FontType\.(MONO12|MONO15|MONO20|MONO30|MONO40|MONO60|PROP20|PROP30|PROP40|PROP60)\)$/);
+    if(match){state.font=match[1];continue;}
 
     match=line.match(/^brain\.screen\.set_cursor\(([-\d]+)\s*,\s*([-\d]+)\)$/);
-    if(match){setCursor(match[1],match[2]);return;}
+    if(match){setCursor(match[1],match[2]);continue;}
 
     match=line.match(/^brain\.screen\.print\((['"])(.*?)\1\)$/);
-    if(match){printText(match[2].replace(/\\n/g,"\n").replace(/\\t/g,"\t"));return;}
+    if(match){printText(match[2].replace(/\\n/g,"\n").replace(/\\t/g,"\t"));continue;}
 
-    if(/^brain\.screen\.next_row\(\)$/.test(line)){nextRow();return;}
-    if(/^brain\.screen\.clear_screen\(\)$/.test(line)){clearBuffer();state.row=1;state.col=1;return;}
+    if(/^brain\.screen\.next_row\(\)$/.test(line)){nextRow();continue;}
+    if(/^brain\.screen\.clear_screen\(\)$/.test(line)){clearBuffer();state.row=1;state.col=1;continue;}
 
     match=line.match(/^brain\.screen\.clear_row\(\s*([-\d]+)?\s*\)$/);
-    if(match){clearRow(match[1]);return;}
+    if(match){clearRow(match[1]);continue;}
 
     match=line.match(/^brain\.screen\.set_pen_width\(([-\d]+)\)$/);
-    if(match){state.penWidth=Math.max(1,numberValue(match[1]));return;}
+    if(match){state.penWidth=Math.max(1,numberValue(match[1]));continue;}
 
     match=line.match(/^brain\.screen\.set_pen_color\(Color\.([A-Z]+)\)$/);
-    if(match && colors[match[1]]){state.pen=match[1];return;}
+    if(match && colors[match[1]]){state.pen=match[1];continue;}
 
     match=line.match(/^brain\.screen\.set_fill_color\(Color\.([A-Z]+)\)$/);
-    if(match && colors[match[1]]){state.fill=match[1];return;}
+    if(match && colors[match[1]]){state.fill=match[1];continue;}
 
-    if(/^brain\.screen\.(row|column)\(\)$/.test(line))return;
+    if(/^brain\.screen\.(row|column)\(\)$/.test(line))continue;
 
     match=line.match(/^brain\.screen\.draw_pixel\(([-\d]+)\s*,\s*([-\d]+)\)$/);
-    if(match){drawPixel(match[1],match[2]);return;}
+    if(match){drawPixel(match[1],match[2]);continue;}
 
     match=line.match(/^brain\.screen\.draw_line\(([-\d]+)\s*,\s*([-\d]+)\s*,\s*([-\d]+)\s*,\s*([-\d]+)\)$/);
-    if(match){drawLine(match[1],match[2],match[3],match[4]);return;}
+    if(match){drawLine(match[1],match[2],match[3],match[4]);continue;}
 
     match=line.match(/^brain\.screen\.draw_rectangle\(([-\d]+)\s*,\s*([-\d]+)\s*,\s*([-\d]+)\s*,\s*([-\d]+)\)$/);
-    if(match){drawRectangle(match[1],match[2],match[3],match[4]);return;}
+    if(match){drawRectangle(match[1],match[2],match[3],match[4]);continue;}
 
     match=line.match(/^brain\.screen\.draw_circle\(([-\d]+)\s*,\s*([-\d]+)\s*,\s*([-\d]+)\)$/);
-    if(match){drawCircle(match[1],match[2],match[3]);return;}
+    if(match){drawCircle(match[1],match[2],match[3]);continue;}
 
     errors.push(explainPythonError(line,lineNumber));
-  });
+  }
 
-  finishRun(errors);
+  if(runId===programRunId)finishRun(errors);
 }
-
 function runBlocksProgram(){
   beginProgram();
   const errors=[];

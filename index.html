@@ -2388,12 +2388,26 @@ function drawSnapshotInfo(graphics,label,value,x,y,width){
   graphics.fillText(clippedCanvasText(graphics,value,width-20),x+10,y+43);
 }
 
+function pythonSnapshotProgram(){
+  const source=getFullPythonCode();
+  const sourceLines=source.split("\n");
+  const range=generatedRegionRange(source);
+  const lines=sourceLines
+    .map((text,index)=>({text,lineNumber:index+1}))
+    .filter((line,index)=>!range || index<range.start || index>range.end);
+  return{
+    lines,
+    omittedCount:range?range.end-range.start+1:0
+  };
+}
+
 function createProjectSnapshotCanvas(){
   const output=document.createElement("canvas");
   output.width=1280;
+  const pythonProgram=activeMode==="python"?pythonSnapshotProgram():{lines:[],omittedCount:0};
   const programAreaHeight=activeMode==="blocks"
     ?Math.max(536,blockProgram.length*43+20)
-    :536;
+    :Math.max(536,pythonProgram.lines.length*17+36);
   const workspacePanelHeight=programAreaHeight+62;
   output.height=Math.max(720,workspacePanelHeight+122);
   const graphics=output.getContext("2d");
@@ -2411,27 +2425,28 @@ function createProjectSnapshotCanvas(){
   graphics.fillStyle="#20242a";
   graphics.font="bold 15px Arial,Helvetica,sans-serif";
   graphics.fillText(activeMode==="python"?"main.py":"main.blocks",58,112);
+  if(activeMode==="python" && pythonProgram.omittedCount){
+    graphics.fillStyle="#718096";
+    graphics.font="11px Arial,Helvetica,sans-serif";
+    graphics.textAlign="right";
+    graphics.fillText("Generated #region omitted",602,112);
+    graphics.textAlign="left";
+  }
   graphics.fillStyle="#161b22";
   roundedRectPath(graphics,55,126,560,programAreaHeight,8);
   graphics.fill();
 
   if(activeMode==="python"){
-    const lines=editor.value.split("\n");
     graphics.font='13px Consolas,"Courier New",monospace';
-    const maxLines=29;
-    lines.slice(0,maxLines).forEach((line,index)=>{
+    pythonProgram.lines.forEach((line,index)=>{
       const y=151+index*17;
       graphics.fillStyle="#758191";
       graphics.textAlign="right";
-      graphics.fillText(String(index+1),84,y);
+      graphics.fillText(String(line.lineNumber),84,y);
       graphics.fillStyle="#e7edf4";
       graphics.textAlign="left";
-      graphics.fillText(clippedCanvasText(graphics,line,505),96,y);
+      graphics.fillText(clippedCanvasText(graphics,line.text,505),96,y);
     });
-    if(lines.length>maxLines){
-      graphics.fillStyle="#aab4bf";
-      graphics.fillText("… "+(lines.length-maxLines)+" more lines",96,649);
-    }
   }
   else if(blockProgram.length){
     let blockY=140;

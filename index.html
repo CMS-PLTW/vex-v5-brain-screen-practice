@@ -152,7 +152,8 @@ canvas{display:block;width:100%;aspect-ratio:2/1;border:1px solid #020303;border
 .region-fold-btn{color:#334155;white-space:nowrap}
 .region-fold-btn:hover{background:#f0f3f7}
 .example-select{max-width:132px;color:#334155}
-.filename-bar{display:flex;justify-content:space-between;padding:7px 9px;border-bottom:1px solid #dce2e8;background:#f3f5f7;color:#334155;font:11px Consolas,monospace}
+.filename-bar{display:flex;min-height:39px;align-items:center;justify-content:space-between;padding:6px 9px;border-bottom:1px solid #dce2e8;background:#f3f5f7;color:#334155;font:11px Consolas,monospace}
+.filename-actions{display:flex;align-items:center;gap:9px}
 .editor-shell{display:grid;grid-template-columns:48px minmax(0,1fr);height:var(--workspace-height);background:#fff}
 #lineNumbers{margin:0;padding:12px 8px 12px 0;overflow:hidden;border-right:1px solid #d8dee6;background:#f4f6f8;color:#64748b;text-align:right;font:var(--editor-font-size)/1.55 Consolas,"Courier New",monospace}
 .line-number{display:block;min-height:1.55em;padding-right:2px;border-radius:3px}
@@ -382,11 +383,6 @@ canvas{display:block;width:100%;aspect-ratio:2/1;border:1px solid #020303;border
         <div class="workspace-title">
           <span>Coding Workspace</span>
           <div class="workspace-title-actions">
-            <div id="editorZoomControls" class="zoom-controls" aria-label="Editor text zoom">
-              <button id="zoomOutBtn" class="zoom-button" type="button" aria-label="Zoom out coding text">A−</button>
-              <span id="zoomValue" class="zoom-value" aria-live="polite">100%</span>
-              <button id="zoomInBtn" class="zoom-button" type="button" aria-label="Zoom in coding text">A+</button>
-            </div>
             <button id="regionFoldBtn" class="region-fold-btn" hidden>Collapse setup</button>
             <span id="workspaceModeBadge" class="mode-badge">Python</span>
             <button id="clearBlocksBtn" class="clear-blocks-btn" hidden>Clear Blocks</button>
@@ -401,7 +397,17 @@ canvas{display:block;width:100%;aspect-ratio:2/1;border:1px solid #020303;border
         </div>
 
         <div id="pythonWorkspace" class="mode-view">
-          <div class="filename-bar"><span>main.py</span><span id="pythonStatus">Live</span></div>
+          <div class="filename-bar">
+            <span>main.py</span>
+            <div class="filename-actions">
+              <div id="editorZoomControls" class="zoom-controls" aria-label="Editor text zoom">
+                <button id="zoomOutBtn" class="zoom-button" type="button" aria-label="Zoom out coding text">A−</button>
+                <span id="zoomValue" class="zoom-value" aria-live="polite">100%</span>
+                <button id="zoomInBtn" class="zoom-button" type="button" aria-label="Zoom in coding text">A+</button>
+              </div>
+              <span id="pythonStatus">Live</span>
+            </div>
+          </div>
           <div class="editor-shell">
             <pre id="lineNumbers"></pre>
             <div class="editor-code-layer">

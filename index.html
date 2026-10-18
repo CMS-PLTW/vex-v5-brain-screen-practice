@@ -31,6 +31,7 @@
   --code-enum:#c2410c;
   --error-panel-height:0px;
   --editor-font-size:15px;
+  --editor-line-height:23px;
   --workspace-height:max(400px,calc(100vh - 175px - var(--error-panel-height)));
   --workspace-height:max(400px,calc(100dvh - 175px - var(--error-panel-height)));
 }
@@ -155,19 +156,19 @@ canvas{display:block;width:100%;aspect-ratio:2/1;border:1px solid #020303;border
 .filename-bar{display:flex;min-height:39px;align-items:center;justify-content:space-between;padding:6px 9px;border-bottom:1px solid #dce2e8;background:#f3f5f7;color:#334155;font:11px Consolas,monospace}
 .filename-actions{display:flex;align-items:center;gap:9px}
 .editor-shell{display:grid;grid-template-columns:48px minmax(0,1fr);height:var(--workspace-height);background:#fff}
-#lineNumbers{margin:0;padding:12px 8px 12px 0;overflow:hidden;border-right:1px solid #d8dee6;background:#f4f6f8;color:#64748b;text-align:right;font:var(--editor-font-size)/1.55 Consolas,"Courier New",monospace}
-.line-number{display:block;min-height:1.55em;padding-right:2px;border-radius:3px}
+#lineNumbers{margin:0;padding:12px 8px 12px 0;overflow:hidden;border-right:1px solid #d8dee6;background:#f4f6f8;color:#64748b;text-align:right;font-family:Consolas,"Courier New",monospace;font-size:var(--editor-font-size);font-weight:400;line-height:var(--editor-line-height);font-variant-ligatures:none}
+.line-number{display:block;height:var(--editor-line-height);min-height:var(--editor-line-height);padding-right:2px;border-radius:3px}
 .line-number.has-error{background:#7f1d1d;color:#fff;font-weight:bold}
 .editor-code-layer{position:relative;min-width:0;height:100%;overflow:hidden;background:#fff}
-#syntaxHighlight,#editor{position:absolute;inset:0;width:100%;height:100%;margin:0;border:0;padding:12px 14px;font:var(--editor-font-size)/1.55 Consolas,"Courier New",monospace;tab-size:4;white-space:pre;overflow:auto}
+#syntaxHighlight,#editor{position:absolute;inset:0;width:100%;height:100%;margin:0;border:0;padding:12px 14px;font-family:Consolas,"Courier New",monospace;font-size:var(--editor-font-size);font-weight:400;line-height:var(--editor-line-height);font-variant-ligatures:none;letter-spacing:0;tab-size:4;white-space:pre;overflow:auto}
 #syntaxHighlight{z-index:1;pointer-events:none;background:#fff;color:#1f2937;scrollbar-width:none}
 #syntaxHighlight::-webkit-scrollbar{display:none}
 #editor{z-index:2;resize:none;outline:0;background:transparent;color:transparent;caret-color:#111827;-webkit-text-fill-color:transparent}
 #editor::selection{background:rgba(96,165,250,.35)}
-.syntax-keyword{color:#111827;font-weight:700}
+.syntax-keyword{color:#111827;font-weight:400}
 .syntax-string{color:var(--code-string)}
 .syntax-number{color:var(--code-number)}
-.syntax-comment{color:#64748b;font-style:italic}
+.syntax-comment{color:#64748b;font-style:normal}
 .syntax-vex-object,.syntax-method{color:var(--code-object)}
 .syntax-vex-type,.syntax-constant{color:var(--code-enum)}
 .syntax-operator{color:#334155}
@@ -608,6 +609,7 @@ let editorFontSize=15;
 function applyEditorZoom(size,{save=true}={}){
   editorFontSize=Math.max(12,Math.min(24,Number(size) || 15));
   document.documentElement.style.setProperty("--editor-font-size",editorFontSize+"px");
+  document.documentElement.style.setProperty("--editor-line-height",(editorFontSize+8)+"px");
   byId("zoomValue").textContent=Math.round(editorFontSize/15*100)+"%";
   byId("zoomOutBtn").disabled=editorFontSize<=12;
   byId("zoomInBtn").disabled=editorFontSize>=24;

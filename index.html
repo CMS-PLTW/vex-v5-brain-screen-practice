@@ -2334,6 +2334,48 @@ function topLevelOperator(source,operators){
   return null;
 }
 
+function pythonFiniteNumber(value,label){
+  const number=Number(value);
+  if(!Number.isFinite(number))throw new Error(label+" must be a number.");
+  return number;
+}
+
+function evaluatePythonFunction(source,variables){
+  const match=source.match(/^([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\((.*)\)$/);
+  if(!match)return{matched:false};
+
+  const name=match[1];
+  const rawArgs=splitPythonArguments(match[2]);
+  const args=rawArgs.map(value=>evaluatePythonValue(value,variables));
+
+  if(name==="int"){
+    if(args.length!==1)throw new Error("int() needs one value.");
+    return{matched:true,value:Math.trunc(pythonFiniteNumber(args[0],"The int() value"))};
+  }
+
+  if(name==="round"){
+    if(args.length<1 || args.length>2)throw new Error("round() needs a number and may include decimal places.");
+    const number=pythonFiniteNumber(args[0],"The round() value");
+    const digits=args.length===2?pythonFiniteNumber(args[1],"The round() decimal places"):0;
+    if(!Number.isInteger(digits))throw new Error("The round() decimal places must be a whole number.");
+    if(digits<-15 || digits>15)throw new Error("Use between -15 and 15 decimal places in round().");
+    const power=Math.pow(10,digits);
+    const rounded=digits>=0
+      ?Math.round((number+Number.EPSILON)*power)/power
+      :Math.round(number/power)*power;
+    return{matched:true,value:rounded};
+  }
+
+  if(name==="urandom.uniform"){
+    if(args.length!==2)throw new Error("urandom.uniform() needs a minimum and maximum number.");
+    const minimum=pythonFiniteNumber(args[0],"The urandom.uniform() minimum");
+    const maximum=pythonFiniteNumber(args[1],"The urandom.uniform() maximum");
+    return{matched:true,value:minimum+Math.random()*(maximum-minimum)};
+  }
+
+  return{matched:false};
+}
+
 function evaluatePythonValue(expression,variables){
   const source=expression.trim();
   if(!source)throw new Error("A value is missing.");
@@ -2368,6 +2410,8 @@ function evaluatePythonValue(expression,variables){
       case "%": return Number(left)%Number(right);
     }
   }
+  const functionResult=evaluatePythonFunction(source,variables);
+  if(functionResult.matched)return functionResult.value;
   throw new Error('The value "'+source+'" is not supported.');
 }
 

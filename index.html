@@ -2220,8 +2220,11 @@ function nearestScreenMethod(method){
 function explainPythonError(line,lineNumber){
   const prefix="Line "+lineNumber+": ";
 
-  if(/^(if|elif|else|def)\b/.test(line)){
-    return prefix+"This simulator currently supports variables, for loops, and while loops; if statements and functions are not supported yet.";
+  if(/^(elif|else|def)\b/.test(line)){
+    return prefix+"This simulator supports if statements; elif, else, and functions are not supported yet.";
+  }
+  if(/^if\b/.test(line)){
+    return prefix+"Use an if comparison followed by a colon, such as: if 1 <= row <= 5:";
   }
   if(/^for\b/.test(line)){
     return prefix+"Use a repeat loop such as: for repeat_count in range(5):";
@@ -2338,10 +2341,11 @@ function parsePythonBlock(records,start,indent,errors){
 
     let match=record.trimmed.match(/^for\s+([A-Za-z_]\w*)\s+in\s+range\((.*)\)\s*:\s*$/);
     const whileMatch=record.trimmed.match(/^while\s+(.+?)\s*:\s*$/);
-    if(match || whileMatch){
+    const ifMatch=record.trimmed.match(/^if\s+(.+?)\s*:\s*$/);
+    if(match || whileMatch || ifMatch){
       const nextRecord=nextPythonCodeLine(records,index+1);
       if(!nextRecord || nextRecord.indent<=indent){
-        errors.push("Line "+record.lineNumber+": Add an indented command under this loop.");
+        errors.push("Line "+record.lineNumber+": Add an indented command under this block.");
         index++;
         continue;
       }
@@ -2349,8 +2353,11 @@ function parsePythonBlock(records,start,indent,errors){
       if(match){
         nodes.push({type:"for",variable:match[1],rangeExpression:match[2],body:bodyResult.nodes,lineNumber:record.lineNumber});
       }
-      else{
+      else if(whileMatch){
         nodes.push({type:"while",condition:whileMatch[1],body:bodyResult.nodes,lineNumber:record.lineNumber});
+      }
+      else{
+        nodes.push({type:"if",condition:ifMatch[1],body:bodyResult.nodes,lineNumber:record.lineNumber});
       }
       index=bodyResult.index;
       continue;
@@ -2541,12 +2548,40 @@ function evaluatePythonValue(expression,variables){
   throw new Error('The value "'+source+'" is not supported.');
 }
 
-function evaluatePythonCondition(expression,variables){
-  const comparison=topLevelOperator(expression,["<=",">=","==","!=","<",">"]);
-  if(!comparison)return Boolean(evaluatePythonValue(expression,variables));
-  const left=evaluatePythonValue(expression.slice(0,comparison.index),variables);
-  const right=evaluatePythonValue(expression.slice(comparison.index+comparison.operator.length),variables);
-  switch(comparison.operator){
+function splitPythonComparisons(source){
+  const values=[];
+  const operators=[];
+  const choices=["<=",">=","==","!=","<",">"];
+  let start=0;
+  let quote="";
+  let depth=0;
+
+  for(let index=0;index<source.length;index++){
+    const character=source[index];
+    if(quote){
+      if(character==="\\")index++;
+      else if(character===quote)quote="";
+      continue;
+    }
+    if(character==='"' || character==="'"){quote=character;continue;}
+    if(character==="(" || character==="["){depth++;continue;}
+    if(character===")" || character==="]"){depth--;continue;}
+    if(depth!==0)continue;
+
+    const operator=choices.find(choice=>source.slice(index,index+choice.length)===choice);
+    if(!operator)continue;
+    values.push(source.slice(start,index).trim());
+    operators.push(operator);
+    index+=operator.length-1;
+    start=index+1;
+  }
+
+  if(operators.length)values.push(source.slice(start).trim());
+  return{values,operators};
+}
+
+function comparePythonValues(left,operator,right){
+  switch(operator){
     case "<=": return left<=right;
     case ">=": return left>=right;
     case "==": return left===right;
@@ -2555,6 +2590,20 @@ function evaluatePythonCondition(expression,variables){
     case ">": return left>right;
   }
   return false;
+}
+
+function evaluatePythonCondition(expression,variables){
+  const comparison=splitPythonComparisons(expression);
+  if(!comparison.operators.length)return Boolean(evaluatePythonValue(expression,variables));
+  if(comparison.values.some(value=>!value))throw new Error("A comparison value is missing.");
+
+  let left=evaluatePythonValue(comparison.values[0],variables);
+  for(let index=0;index<comparison.operators.length;index++){
+    const right=evaluatePythonValue(comparison.values[index+1],variables);
+    if(!comparePythonValues(left,comparison.operators[index],right))return false;
+    left=right;
+  }
+  return true;
 }
 
 function pythonRangeValues(expression,variables){
@@ -2721,6 +2770,9 @@ async function executePythonNodes(nodes,context){
           }
           if(!await executePythonNodes(node.body,context))return false;
         }
+      }
+      else if(node.type==="if" && evaluatePythonCondition(node.condition,context.variables)){
+        if(!await executePythonNodes(node.body,context))return false;
       }
     }
     catch(error){

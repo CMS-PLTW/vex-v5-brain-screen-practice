@@ -2288,6 +2288,24 @@ function pythonIndentWidth(raw){
   return width;
 }
 
+function stripPythonInlineComment(raw){
+  let quote="";
+  for(let index=0;index<raw.length;index++){
+    const character=raw[index];
+    if(quote){
+      if(character==="\\")index++;
+      else if(character===quote)quote="";
+      continue;
+    }
+    if(character==='"' || character==="'"){
+      quote=character;
+      continue;
+    }
+    if(character==="#")return raw.slice(0,index).trimEnd();
+  }
+  return raw;
+}
+
 function isPythonSetupLine(line){
   return !line || line.startsWith("#") ||
     /^from\s+\S+\s+import\s+/.test(line) ||
@@ -2299,16 +2317,17 @@ function pythonProgramRecords(){
   const records=[];
   let inGeneratedConfiguration=false;
   editor.value.split("\n").forEach((raw,index)=>{
-    const trimmed=raw.trim();
-    if(/^#region\s+VEXcode Generated Robot Configuration$/i.test(trimmed)){
+    const originalTrimmed=raw.trim();
+    if(/^#region\s+VEXcode Generated Robot Configuration$/i.test(originalTrimmed)){
       inGeneratedConfiguration=true;
       return;
     }
-    if(/^#endregion\s+VEXcode Generated Robot Configuration$/i.test(trimmed)){
+    if(/^#endregion\s+VEXcode Generated Robot Configuration$/i.test(originalTrimmed)){
       inGeneratedConfiguration=false;
       return;
     }
     if(!inGeneratedConfiguration){
+      const trimmed=stripPythonInlineComment(raw).trim();
       records.push({raw,trimmed,indent:pythonIndentWidth(raw),lineNumber:index+1});
     }
   });

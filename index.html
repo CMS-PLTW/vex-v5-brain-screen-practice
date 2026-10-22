@@ -2385,8 +2385,8 @@ function splitPythonArguments(source){
       current+=character;
       continue;
     }
-    if(character==="(")depth++;
-    else if(character===")")depth--;
+    if(character==="(" || character==="[")depth++;
+    else if(character===")" || character==="]")depth--;
     if(character==="," && depth===0){
       parts.push(current.trim());
       current="";
@@ -2449,6 +2449,14 @@ function evaluatePythonFunction(source,variables){
     return{matched:true,value:Math.trunc(pythonFiniteNumber(args[0],"The int() value"))};
   }
 
+  if(name==="len"){
+    if(args.length!==1)throw new Error("len() needs one list or text value.");
+    if(!Array.isArray(args[0]) && typeof args[0]!=="string"){
+      throw new Error("len() can only count a list or text value.");
+    }
+    return{matched:true,value:args[0].length};
+  }
+
   if(name==="round"){
     if(args.length<1 || args.length>2)throw new Error("round() needs a number and may include decimal places.");
     const number=pythonFiniteNumber(args[0],"The round() value");
@@ -2476,6 +2484,12 @@ function evaluatePythonValue(expression,variables){
   const source=expression.trim();
   if(!source)throw new Error("A value is missing.");
 
+  if(source.startsWith("[") && source.endsWith("]")){
+    const contents=source.slice(1,-1).trim();
+    if(!contents)return[];
+    return splitPythonArguments(contents).map(value=>evaluatePythonValue(value,variables));
+  }
+
   const stringMatch=source.match(/^(['"])([\s\S]*)\1$/);
   if(stringMatch){
     return stringMatch[2]
@@ -2490,6 +2504,21 @@ function evaluatePythonValue(expression,variables){
   if(source==="SECONDS" || source==="MSEC")return source;
   if(/^brain\.screen\.row\(\)$/.test(source))return state.row;
   if(/^brain\.screen\.column\(\)$/.test(source))return state.col;
+  const indexMatch=source.match(/^([A-Za-z_]\w*)\[(.+)\]$/);
+  if(indexMatch){
+    if(!Object.prototype.hasOwnProperty.call(variables,indexMatch[1])){
+      throw new Error('Variable "'+indexMatch[1]+'" has not been created yet.');
+    }
+    const collection=variables[indexMatch[1]];
+    if(!Array.isArray(collection) && typeof collection!=="string"){
+      throw new Error('Variable "'+indexMatch[1]+'" is not a list or text value.');
+    }
+    const requested=Number(evaluatePythonValue(indexMatch[2],variables));
+    if(!Number.isInteger(requested))throw new Error("A list index must be a whole number.");
+    const index=requested<0?collection.length+requested:requested;
+    if(index<0 || index>=collection.length)throw new Error("List index is out of range.");
+    return collection[index];
+  }
   if(/^[A-Za-z_]\w*$/.test(source)){
     if(Object.prototype.hasOwnProperty.call(variables,source))return variables[source];
     throw new Error('Variable "'+source+'" has not been created yet.');

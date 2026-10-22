@@ -163,11 +163,11 @@ canvas{display:block;width:100%;aspect-ratio:2/1;border:1px solid #020303;border
 .filename-bar{display:flex;min-height:39px;align-items:center;justify-content:space-between;padding:6px 9px;border-bottom:1px solid #dce2e8;background:#f3f5f7;color:#334155;font:11px Consolas,monospace}
 .filename-actions{display:flex;align-items:center;gap:9px}
 .editor-shell{display:grid;grid-template-columns:48px minmax(0,1fr);height:var(--workspace-height);background:#fff}
-#lineNumbers{margin:0;padding:12px 8px 12px 0;overflow:hidden;border-right:1px solid #d8dee6;background:#f4f6f8;color:#64748b;text-align:right;font-family:Consolas,"Courier New",monospace;font-size:var(--editor-font-size);font-weight:400;line-height:var(--editor-line-height);font-variant-ligatures:none}
+#lineNumbers{margin:0;padding:12px 8px 12px 0;overflow:hidden;border-right:1px solid #d8dee6;background:#f4f6f8;color:#64748b;text-align:right;font:400 var(--editor-font-size)/var(--editor-line-height) Consolas,"Courier New",monospace;font-kerning:none;font-synthesis:none;font-variant-ligatures:none;font-feature-settings:"liga" 0,"calt" 0;letter-spacing:0;word-spacing:0;text-rendering:optimizeSpeed}
 .line-number{display:block;height:var(--editor-line-height);min-height:var(--editor-line-height);padding-right:2px;border-radius:3px}
 .line-number.has-error{background:#7f1d1d;color:#fff;font-weight:bold}
 .editor-code-layer{position:relative;min-width:0;height:100%;overflow:hidden;background:#fff}
-#syntaxHighlight,#editor{position:absolute;inset:0;width:100%;height:100%;margin:0;border:0;padding:12px 14px;font-family:Consolas,"Courier New",monospace;font-size:var(--editor-font-size);font-weight:400;line-height:var(--editor-line-height);font-variant-ligatures:none;letter-spacing:0;tab-size:4;white-space:pre;overflow:auto}
+#syntaxHighlight,#editor{position:absolute;inset:0;width:100%;height:100%;margin:0;border:0;padding:12px 14px;font:400 var(--editor-font-size)/var(--editor-line-height) Consolas,"Courier New",monospace;font-kerning:none;font-synthesis:none;font-variant-ligatures:none;font-feature-settings:"liga" 0,"calt" 0;letter-spacing:0;word-spacing:0;text-align:left;text-indent:0;text-transform:none;text-rendering:optimizeSpeed;tab-size:4;-moz-tab-size:4;white-space:pre;overflow:auto;overflow-wrap:normal;word-break:normal}
 #syntaxHighlight{z-index:1;pointer-events:none;background:#fff;color:#1f2937;scrollbar-width:none}
 #syntaxHighlight::-webkit-scrollbar{display:none}
 #editor{z-index:2;resize:none;outline:0;background:transparent;color:transparent;caret-color:#111827;-webkit-text-fill-color:transparent}
@@ -715,7 +715,8 @@ function applyEditorZoom(size,{save=true}={}){
   if(save){
     try{localStorage.setItem(editorZoomKey,String(editorFontSize));}catch{}
   }
-  syncEditorScroll();
+  updateSyntaxHighlight();
+  syncEditorGeometry();
 }
 
 try{
@@ -1284,6 +1285,14 @@ function syncEditorScroll(){
   syntaxHighlight.scrollLeft=editor.scrollLeft;
 }
 
+function syncEditorGeometry(){
+  syncEditorScroll();
+  requestAnimationFrame(()=>{
+    syncEditorScroll();
+    requestAnimationFrame(syncEditorScroll);
+  });
+}
+
 function updateSyntaxHighlight(){
   const source=editor.value;
   syntaxHighlight.innerHTML=highlightPython(source)+(source.endsWith("\n")?" ":"");
@@ -1367,6 +1376,10 @@ function updateLineNumbers(){
 }
 
 editor.addEventListener("scroll",syncEditorScroll);
+if(document.fonts && document.fonts.ready){
+  document.fonts.ready.then(syncEditorGeometry);
+}
+new ResizeObserver(syncEditorGeometry).observe(byId("pythonWorkspace"));
 byId("regionFoldBtn").addEventListener("click",toggleGeneratedRegion);
 projectName.addEventListener("input",scheduleAutosave);
 

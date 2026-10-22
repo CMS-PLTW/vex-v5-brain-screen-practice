@@ -2863,9 +2863,14 @@ async function executePythonNodes(nodes,context){
   for(const node of nodes){
     if(context.runId!==programRunId)return false;
     context.steps++;
-    if(context.steps>5000){
-      context.errors.push("Line "+node.lineNumber+": Program stopped after 5,000 steps. Check for a loop that never ends.");
-      return false;
+    if(context.steps%40===0){
+      updateInfo();
+      drawVisibleScreen();
+      setCompactStatus("Live","live");
+      byId("brainState").textContent="LIVE";
+      byId("pythonStatus").textContent="Live";
+      await new Promise(resolve=>requestAnimationFrame(resolve));
+      if(context.runId!==programRunId)return false;
     }
     try{
       if(node.type==="statement"){
@@ -2879,13 +2884,7 @@ async function executePythonNodes(nodes,context){
         }
       }
       else if(node.type==="while"){
-        let repeats=0;
         while(evaluatePythonCondition(node.condition,context.variables)){
-          repeats++;
-          if(repeats>1000){
-            context.errors.push("Line "+node.lineNumber+": While loop stopped after 1,000 repeats. Check that its condition can become false.");
-            return false;
-          }
           if(!await executePythonNodes(node.body,context))return false;
         }
       }
@@ -2909,6 +2908,12 @@ async function runPythonProgram(runId){
   const baseIndent=firstCode?firstCode.indent:0;
   const parsed=parsePythonBlock(records,0,baseIndent,errors);
   if(!errors.length){
+    hideCodeCheck();
+    clearErrorHighlights();
+    setCompactStatus("Live","live");
+    byId("brainState").textContent="LIVE";
+    byId("pythonStatus").textContent="Live";
+    byId("workspaceMessage").textContent="The program is running. Edit the code to restart it.";
     await executePythonNodes(parsed.nodes,{variables:Object.create(null),errors,runId,steps:0});
   }
   if(runId===programRunId)finishRun(errors);

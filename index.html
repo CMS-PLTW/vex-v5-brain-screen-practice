@@ -76,7 +76,14 @@ button{cursor:pointer}
 /* MAIN */
 .main{display:grid;grid-template-columns:275px minmax(430px,1fr) 190px;gap:10px;align-items:start}
 .panel{overflow:hidden;border:1px solid var(--border);border-radius:5px;background:white}
-.center{display:grid;grid-template-columns:minmax(340px,.95fr) minmax(415px,1.15fr);gap:10px;align-items:start;min-width:0}
+.center{display:grid;grid-template-columns:minmax(300px,var(--workspace-pane-width,.95fr)) 14px minmax(340px,1.15fr);gap:0;align-items:start;min-width:0}
+.pane-divider{position:relative;align-self:stretch;min-height:100%;outline:0;cursor:col-resize;touch-action:none;user-select:none}
+.pane-divider::before{content:"";position:absolute;left:5px;top:0;bottom:0;width:4px;border:1px solid #94a3b8;border-radius:5px;background:#cbd5e1;box-shadow:0 0 0 2px rgba(255,255,255,.75)}
+.pane-divider::after{content:"";position:absolute;left:3px;top:50%;width:8px;height:42px;transform:translateY(-50%);border:1px solid #64748b;border-radius:6px;background:repeating-linear-gradient(to bottom,#475569 0 3px,#e2e8f0 3px 7px)}
+.pane-divider:hover::before,.pane-divider.dragging::before,.pane-divider:focus-visible::before{border-color:#1d4ed8;background:#60a5fa}
+.pane-divider:hover::after,.pane-divider.dragging::after,.pane-divider:focus-visible::after{border-color:#1e3a8a;background:repeating-linear-gradient(to bottom,#1d4ed8 0 3px,#dbeafe 3px 7px)}
+.pane-divider:focus-visible{outline:2px solid #2563eb;outline-offset:-1px;border-radius:6px}
+.pane-divider.dragging{cursor:col-resize}
 .menu-header{padding:6px 10px;border-bottom:1px solid #d9d9d9;background:#efefef;font-size:17px;font-weight:bold}
 .section-title{padding:4px 14px 2px;border-bottom:1px solid #dedede;color:#111;font-size:16px}
 .command-list{padding:3px 0 4px}
@@ -224,6 +231,7 @@ canvas{display:block;width:100%;aspect-ratio:2/1;border:1px solid #020303;border
 
 @media(max-width:1279px){
   .center{grid-template-columns:1fr}
+  .pane-divider{display:none}
   .brain{max-width:720px;margin:0 auto}
 }
 @media(max-width:980px){
@@ -453,6 +461,8 @@ canvas{display:block;width:100%;aspect-ratio:2/1;border:1px solid #020303;border
         <div id="workspaceMessage" class="workspace-message">The Brain screen updates automatically as you code.</div>
       </div>
 
+      <div id="paneDivider" class="pane-divider" role="separator" tabindex="0" aria-label="Resize coding workspace and Brain screen" aria-orientation="vertical" aria-valuemin="35" aria-valuemax="65" aria-valuenow="46" title="Drag to resize. Use Left and Right Arrow keys for small adjustments."></div>
+
       <div class="brain">
         <div class="brain-port-strip port-strip-top" aria-hidden="true">
           <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
@@ -598,6 +608,7 @@ let activeMode="python";
 let practiceGrid="";
 let liveTimer=null;
 let programRunId=0;
+let programStartedAt=performance.now();
 let nextBlockId=1;
 let blockProgram=[];
 let vexProjectMetadata=null;
@@ -617,7 +628,82 @@ let blockErrorIndexes=[];
 
 const autosaveKey="vex-v5-screen-simulator.autosave.v1";
 const editorZoomKey="vex-v5-screen-simulator.editor-font-size.v1";
+const paneSplitKey="vex-v5-screen-simulator.pane-split.v1";
 let editorFontSize=15;
+let paneSplitRatio=.46;
+
+const centerPane=document.querySelector(".center");
+const paneDivider=byId("paneDivider");
+let paneDividerDragging=false;
+
+function applyPaneSplit(ratio,{save=false}={}){
+  paneSplitRatio=Math.max(.35,Math.min(.65,Number(ratio) || .46));
+  if(window.matchMedia("(max-width: 1279px)").matches){
+    centerPane.style.removeProperty("--workspace-pane-width");
+    return;
+  }
+
+  const available=Math.max(0,centerPane.clientWidth-paneDivider.offsetWidth);
+  const minimumWorkspace=300;
+  const minimumBrain=340;
+  const workspaceWidth=Math.max(minimumWorkspace,Math.min(available-minimumBrain,available*paneSplitRatio));
+  const appliedRatio=available?workspaceWidth/available:paneSplitRatio;
+  centerPane.style.setProperty("--workspace-pane-width",workspaceWidth+"px");
+  paneDivider.setAttribute("aria-valuenow",String(Math.round(appliedRatio*100)));
+  paneDivider.setAttribute("aria-valuetext",Math.round(appliedRatio*100)+"% coding workspace, "+Math.round((1-appliedRatio)*100)+"% Brain screen");
+  if(save){
+    paneSplitRatio=appliedRatio;
+    try{localStorage.setItem(paneSplitKey,String(paneSplitRatio));}catch{}
+  }
+  requestAnimationFrame(()=>{
+    drawVisibleScreen();
+    buildAxes();
+  });
+}
+
+function updatePaneSplitFromPointer(clientX,{save=false}={}){
+  const bounds=centerPane.getBoundingClientRect();
+  const available=Math.max(1,bounds.width-paneDivider.offsetWidth);
+  applyPaneSplit((clientX-bounds.left)/available,{save});
+}
+
+try{
+  const savedPaneSplit=Number(localStorage.getItem(paneSplitKey));
+  if(savedPaneSplit)paneSplitRatio=savedPaneSplit;
+}
+catch{}
+
+paneDivider.addEventListener("pointerdown",event=>{
+  if(event.button!==0)return;
+  paneDividerDragging=true;
+  paneDivider.classList.add("dragging");
+  paneDivider.setPointerCapture(event.pointerId);
+  updatePaneSplitFromPointer(event.clientX);
+  event.preventDefault();
+});
+
+paneDivider.addEventListener("pointermove",event=>{
+  if(!paneDividerDragging)return;
+  updatePaneSplitFromPointer(event.clientX);
+});
+
+function finishPaneResize(event){
+  if(!paneDividerDragging)return;
+  paneDividerDragging=false;
+  paneDivider.classList.remove("dragging");
+  if(event && paneDivider.hasPointerCapture(event.pointerId))paneDivider.releasePointerCapture(event.pointerId);
+  applyPaneSplit(paneSplitRatio,{save:true});
+}
+
+paneDivider.addEventListener("pointerup",finishPaneResize);
+paneDivider.addEventListener("pointercancel",finishPaneResize);
+paneDivider.addEventListener("dblclick",()=>applyPaneSplit(.46,{save:true}));
+paneDivider.addEventListener("keydown",event=>{
+  if(event.key!=="ArrowLeft" && event.key!=="ArrowRight" && event.key!=="Home")return;
+  event.preventDefault();
+  const nextRatio=event.key==="Home"?.46:paneSplitRatio+(event.key==="ArrowLeft"?-.02:.02);
+  applyPaneSplit(nextRatio,{save:true});
+});
 
 function applyEditorZoom(size,{save=true}={}){
   editorFontSize=Math.max(12,Math.min(24,Number(size) || 15));
@@ -2043,6 +2129,7 @@ function updateErrorPanelHeight(){
 }
 
 window.addEventListener("resize",()=>{
+  requestAnimationFrame(()=>applyPaneSplit(paneSplitRatio));
   if(!byId("codeCheck").hidden)requestAnimationFrame(updateErrorPanelHeight);
 });
 
@@ -2100,6 +2187,7 @@ function runActiveProgram(){
 }
 
 function beginProgram(){
+  programStartedAt=performance.now();
   state=defaultState();
   clearBuffer();
 }
@@ -2348,6 +2436,14 @@ function evaluatePythonFunction(source,variables){
   const rawArgs=splitPythonArguments(match[2]);
   const args=rawArgs.map(value=>evaluatePythonValue(value,variables));
 
+  if(name==="brain.timer.time"){
+    if(args.length!==1 || (args[0]!=="SECONDS" && args[0]!=="MSEC")){
+      throw new Error("Use brain.timer.time(SECONDS) or brain.timer.time(MSEC).");
+    }
+    const elapsedMilliseconds=Math.max(0,performance.now()-programStartedAt);
+    return{matched:true,value:args[0]==="SECONDS"?elapsedMilliseconds/1000:elapsedMilliseconds};
+  }
+
   if(name==="int"){
     if(args.length!==1)throw new Error("int() needs one value.");
     return{matched:true,value:Math.trunc(pythonFiniteNumber(args[0],"The int() value"))};
@@ -2391,6 +2487,7 @@ function evaluatePythonValue(expression,variables){
   if(source==="True")return true;
   if(source==="False")return false;
   if(source==="None")return null;
+  if(source==="SECONDS" || source==="MSEC")return source;
   if(/^brain\.screen\.row\(\)$/.test(source))return state.row;
   if(/^brain\.screen\.column\(\)$/.test(source))return state.col;
   if(/^[A-Za-z_]\w*$/.test(source)){
@@ -2994,6 +3091,7 @@ byId("snapshotBtn").addEventListener("click",()=>{
 /* START */
 
 applyEditorZoom(editorFontSize,{save:false});
+applyPaneSplit(paneSplitRatio);
 const restoredProject=restoreAutosave();
 if(!restoredProject){
   applyProjectData({

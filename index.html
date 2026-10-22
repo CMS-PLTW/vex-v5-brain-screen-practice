@@ -2505,6 +2505,14 @@ function evaluatePythonValue(expression,variables){
       .replace(/\\(['"\\])/g,"$1");
   }
   if(/^-?(?:\d+(?:\.\d*)?|\.\d+)$/.test(source))return Number(source);
+  if(source.startsWith("-") && source.length>1){
+    const value=evaluatePythonValue(source.slice(1),variables);
+    return -pythonFiniteNumber(value,"The negative value");
+  }
+  if(source.startsWith("+") && source.length>1){
+    const value=evaluatePythonValue(source.slice(1),variables);
+    return pythonFiniteNumber(value,"The positive value");
+  }
   if(source==="True")return true;
   if(source==="False")return false;
   if(source==="None")return null;

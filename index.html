@@ -333,6 +333,19 @@ canvas{display:block;width:100%;aspect-ratio:2/1;border:1px solid #020303;border
           <button class="command" data-code="wait(1, SECONDS)"><span class="method">wait</span>(<span class="number">1</span>, <span class="enum">SECONDS</span>)</button>
         </div>
 
+        <div class="section-title">Variables</div>
+        <div class="command-list">
+          <button class="command" data-code="counter = 0"><span class="method">counter</span> = <span class="number">0</span></button>
+          <button class="command" data-code="counter += 1"><span class="method">counter</span> += <span class="number">1</span></button>
+          <button class="command" data-code='message = "Hello"'><span class="method">message</span> = <span class="string">"Hello"</span></button>
+        </div>
+
+        <div class="section-title">Loops</div>
+        <div class="command-list">
+          <button class="command" data-code="for repeat_count in range(5):&#10;    brain.screen.print(repeat_count)&#10;    brain.screen.next_row()"><span class="syntax-keyword">for</span> repeat_count <span class="syntax-keyword">in</span> <span class="method">range</span>(<span class="number">5</span>):</button>
+          <button class="command" data-code="while counter &lt; 5:&#10;    brain.screen.print(counter)&#10;    brain.screen.next_row()&#10;    counter += 1"><span class="syntax-keyword">while</span> counter &lt; <span class="number">5</span>:</button>
+        </div>
+
         <div class="section-title">Draw</div>
         <div class="command-list">
           <button class="command" data-code="brain.screen.draw_pixel(0, 0)"><span class="obj">brain.screen</span>.<span class="method">draw_pixel</span>(<span class="number">0</span>, <span class="number">0</span>)</button>
@@ -1340,18 +1353,51 @@ editor.addEventListener("input",()=>{
   if(activeMode==="python")scheduleLiveRun();
 });
 
-editor.addEventListener("keydown",event=>{
-  if(event.key!=="Tab")return;
-  event.preventDefault();
+function changeEditorIndent(direction){
   const oldValue=editor.value;
-  const start=editor.selectionStart;
-  const end=editor.selectionEnd;
-  editor.value=oldValue.slice(0,start)+"    "+oldValue.slice(end);
-  editor.selectionStart=editor.selectionEnd=start+4;
+  const selectionStart=editor.selectionStart;
+  const selectionEnd=editor.selectionEnd;
+  const lineStart=oldValue.lastIndexOf("\n",Math.max(0,selectionStart-1))+1;
+  let lineEnd=oldValue.indexOf("\n",selectionEnd);
+  if(lineEnd<0)lineEnd=oldValue.length;
+  const selectedBlock=oldValue.slice(lineStart,lineEnd);
+  const lines=selectedBlock.split("\n");
+  let firstRemoved=0;
+  let totalChange=0;
+
+  const changedLines=lines.map((line,index)=>{
+    if(direction>0){
+      totalChange+=4;
+      return"    "+line;
+    }
+    const match=line.match(/^( {1,4}|\t)/);
+    const removed=match?match[0].length:0;
+    if(index===0)firstRemoved=removed;
+    totalChange-=removed;
+    return removed?line.slice(removed):line;
+  });
+
+  const replacement=changedLines.join("\n");
+  editor.value=oldValue.slice(0,lineStart)+replacement+oldValue.slice(lineEnd);
+  const newStart=direction>0
+    ?selectionStart+4
+    :Math.max(lineStart,selectionStart-firstRemoved);
+  const newEnd=Math.max(newStart,selectionEnd+totalChange);
+  editor.selectionStart=newStart;
+  editor.selectionEnd=newEnd;
+  editor.focus();
   recordPythonChange(oldValue);
   previousEditorValue=editor.value;
   updateLineNumbers();
   if(activeMode==="python")scheduleLiveRun();
+}
+
+editor.addEventListener("keydown",event=>{
+  const indentShortcut=event.ctrlKey && ["]","}","[","{"].includes(event.key);
+  if(event.key!=="Tab" && !indentShortcut)return;
+  event.preventDefault();
+  const direction=event.key==="[" || event.key==="{" || (event.key==="Tab" && event.shiftKey)?-1:1;
+  changeEditorIndent(direction);
 });
 
 function insertCommand(command){
@@ -2086,11 +2132,17 @@ function nearestScreenMethod(method){
 function explainPythonError(line,lineNumber){
   const prefix="Line "+lineNumber+": ";
 
-  if(/^(for|while|if|elif|else|def)\b/.test(line)){
-    return prefix+"Loops, conditions, and functions are not supported in this Screen practice simulator yet.";
+  if(/^(if|elif|else|def)\b/.test(line)){
+    return prefix+"This simulator currently supports variables, for loops, and while loops; if statements and functions are not supported yet.";
   }
-  if(/^[A-Za-z_]\w*\s*=/.test(line)){
-    return prefix+"Variables are not supported yet. Use a Screen command directly.";
+  if(/^for\b/.test(line)){
+    return prefix+"Use a repeat loop such as: for repeat_count in range(5):";
+  }
+  if(/^while\b/.test(line)){
+    return prefix+"Use a comparison such as: while counter < 5:";
+  }
+  if(/^[A-Za-z_]\w*\s*(?:=|\+=|-=|\*=|\/=)/.test(line)){
+    return prefix+"Check the variable name and value.";
   }
   if(/^wait\s*\(/.test(line)){
     return prefix+"Use wait(1, SECONDS) or wait(500, MSEC).";
@@ -2135,82 +2187,390 @@ function explainPythonError(line,lineNumber){
   return prefix+"Check the command spelling, parentheses, commas, and values.";
 }
 
+function pythonIndentWidth(raw){
+  let width=0;
+  for(const character of raw){
+    if(character===" ")width++;
+    else if(character==="\t")width+=4;
+    else break;
+  }
+  return width;
+}
+
+function isPythonSetupLine(line){
+  return !line || line.startsWith("#") ||
+    /^from\s+\S+\s+import\s+/.test(line) ||
+    /^import\s+/.test(line) ||
+    /^brain\s*=\s*Brain\s*\(\s*\)$/.test(line);
+}
+
+function pythonProgramRecords(){
+  const records=[];
+  let inGeneratedConfiguration=false;
+  editor.value.split("\n").forEach((raw,index)=>{
+    const trimmed=raw.trim();
+    if(/^#region\s+VEXcode Generated Robot Configuration$/i.test(trimmed)){
+      inGeneratedConfiguration=true;
+      return;
+    }
+    if(/^#endregion\s+VEXcode Generated Robot Configuration$/i.test(trimmed)){
+      inGeneratedConfiguration=false;
+      return;
+    }
+    if(!inGeneratedConfiguration){
+      records.push({raw,trimmed,indent:pythonIndentWidth(raw),lineNumber:index+1});
+    }
+  });
+  return records;
+}
+
+function nextPythonCodeLine(records,start){
+  for(let index=start;index<records.length;index++){
+    if(!isPythonSetupLine(records[index].trimmed))return records[index];
+  }
+  return null;
+}
+
+function parsePythonBlock(records,start,indent,errors){
+  const nodes=[];
+  let index=start;
+
+  while(index<records.length){
+    const record=records[index];
+    if(isPythonSetupLine(record.trimmed)){
+      index++;
+      continue;
+    }
+    if(record.indent<indent)break;
+    if(record.indent>indent){
+      errors.push("Line "+record.lineNumber+": Unexpected indentation. Use Ctrl+[ or Ctrl+] to adjust the line.");
+      index++;
+      continue;
+    }
+
+    let match=record.trimmed.match(/^for\s+([A-Za-z_]\w*)\s+in\s+range\((.*)\)\s*:\s*$/);
+    const whileMatch=record.trimmed.match(/^while\s+(.+?)\s*:\s*$/);
+    if(match || whileMatch){
+      const nextRecord=nextPythonCodeLine(records,index+1);
+      if(!nextRecord || nextRecord.indent<=indent){
+        errors.push("Line "+record.lineNumber+": Add an indented command under this loop.");
+        index++;
+        continue;
+      }
+      const bodyResult=parsePythonBlock(records,index+1,nextRecord.indent,errors);
+      if(match){
+        nodes.push({type:"for",variable:match[1],rangeExpression:match[2],body:bodyResult.nodes,lineNumber:record.lineNumber});
+      }
+      else{
+        nodes.push({type:"while",condition:whileMatch[1],body:bodyResult.nodes,lineNumber:record.lineNumber});
+      }
+      index=bodyResult.index;
+      continue;
+    }
+
+    nodes.push({type:"statement",text:record.trimmed,lineNumber:record.lineNumber});
+    index++;
+  }
+
+  return{nodes,index};
+}
+
+function splitPythonArguments(source){
+  const parts=[];
+  let current="";
+  let quote="";
+  let depth=0;
+  for(let index=0;index<source.length;index++){
+    const character=source[index];
+    if(quote){
+      current+=character;
+      if(character==="\\" && index+1<source.length){
+        current+=source[++index];
+      }
+      else if(character===quote){
+        quote="";
+      }
+      continue;
+    }
+    if(character==='"' || character==="'"){
+      quote=character;
+      current+=character;
+      continue;
+    }
+    if(character==="(")depth++;
+    else if(character===")")depth--;
+    if(character==="," && depth===0){
+      parts.push(current.trim());
+      current="";
+    }
+    else{
+      current+=character;
+    }
+  }
+  if(current.trim() || source.trim()==="")parts.push(current.trim());
+  return source.trim()===""?[]:parts;
+}
+
+function topLevelOperator(source,operators){
+  let quote="";
+  let depth=0;
+  for(let index=0;index<source.length;index++){
+    const character=source[index];
+    if(quote){
+      if(character==="\\")index++;
+      else if(character===quote)quote="";
+      continue;
+    }
+    if(character==='"' || character==="'"){quote=character;continue;}
+    if(character==="("){depth++;continue;}
+    if(character===")"){depth--;continue;}
+    if(depth!==0)continue;
+    for(const operator of operators){
+      if(source.slice(index,index+operator.length)===operator){
+        return{index,operator};
+      }
+    }
+  }
+  return null;
+}
+
+function evaluatePythonValue(expression,variables){
+  const source=expression.trim();
+  if(!source)throw new Error("A value is missing.");
+
+  const stringMatch=source.match(/^(['"])([\s\S]*)\1$/);
+  if(stringMatch){
+    return stringMatch[2]
+      .replace(/\\n/g,"\n")
+      .replace(/\\t/g,"\t")
+      .replace(/\\(['"\\])/g,"$1");
+  }
+  if(/^-?(?:\d+(?:\.\d*)?|\.\d+)$/.test(source))return Number(source);
+  if(source==="True")return true;
+  if(source==="False")return false;
+  if(source==="None")return null;
+  if(/^brain\.screen\.row\(\)$/.test(source))return state.row;
+  if(/^brain\.screen\.column\(\)$/.test(source))return state.col;
+  if(/^[A-Za-z_]\w*$/.test(source)){
+    if(Object.prototype.hasOwnProperty.call(variables,source))return variables[source];
+    throw new Error('Variable "'+source+'" has not been created yet.');
+  }
+
+  const operation=topLevelOperator(source,[" + "," - "," * "," / "," % "]);
+  if(operation){
+    const left=evaluatePythonValue(source.slice(0,operation.index),variables);
+    const right=evaluatePythonValue(source.slice(operation.index+operation.operator.length),variables);
+    switch(operation.operator.trim()){
+      case "+": return left+right;
+      case "-": return Number(left)-Number(right);
+      case "*": return Number(left)*Number(right);
+      case "/": return Number(left)/Number(right);
+      case "%": return Number(left)%Number(right);
+    }
+  }
+  throw new Error('The value "'+source+'" is not supported.');
+}
+
+function evaluatePythonCondition(expression,variables){
+  const comparison=topLevelOperator(expression,["<=",">=","==","!=","<",">"]);
+  if(!comparison)return Boolean(evaluatePythonValue(expression,variables));
+  const left=evaluatePythonValue(expression.slice(0,comparison.index),variables);
+  const right=evaluatePythonValue(expression.slice(comparison.index+comparison.operator.length),variables);
+  switch(comparison.operator){
+    case "<=": return left<=right;
+    case ">=": return left>=right;
+    case "==": return left===right;
+    case "!=": return left!==right;
+    case "<": return left<right;
+    case ">": return left>right;
+  }
+  return false;
+}
+
+function pythonRangeValues(expression,variables){
+  const args=splitPythonArguments(expression).map(value=>Number(evaluatePythonValue(value,variables)));
+  if(args.length<1 || args.length>3 || args.some(value=>!Number.isFinite(value))){
+    throw new Error("range() needs one, two, or three number values.");
+  }
+  const start=args.length===1?0:args[0];
+  const stop=args.length===1?args[0]:args[1];
+  const step=args.length===3?args[2]:1;
+  if(step===0)throw new Error("The range step cannot be 0.");
+  const values=[];
+  if(step>0){
+    for(let value=start;value<stop && values.length<1000;value+=step)values.push(value);
+  }
+  else{
+    for(let value=start;value>stop && values.length<1000;value+=step)values.push(value);
+  }
+  if(values.length>=1000)throw new Error("This repeat loop is limited to 1,000 repeats.");
+  return values;
+}
+
+async function executePythonStatement(node,context){
+  const line=node.text;
+  let match=line.match(/^([A-Za-z_]\w*)\s*(=|\+=|-=|\*=|\/=)\s*(.+)$/);
+  if(match && match[1]!=="brain"){
+    const name=match[1];
+    const operator=match[2];
+    const value=evaluatePythonValue(match[3],context.variables);
+    if(operator!=="=" && !Object.prototype.hasOwnProperty.call(context.variables,name)){
+      throw new Error('Variable "'+name+'" has not been created yet.');
+    }
+    if(operator==="=")context.variables[name]=value;
+    else if(operator==="+=")context.variables[name]+=value;
+    else if(operator==="-=")context.variables[name]-=Number(value);
+    else if(operator==="*=")context.variables[name]*=Number(value);
+    else if(operator==="/=")context.variables[name]/=Number(value);
+    return;
+  }
+
+  match=line.match(/^wait\((.*)\)$/);
+  if(match){
+    const args=splitPythonArguments(match[1]);
+    if(args.length!==2 || !/^(SECONDS|MSEC)$/.test(args[1])){
+      throw new Error("Use wait(1, SECONDS) or wait(500, MSEC).");
+    }
+    const amount=Number(evaluatePythonValue(args[0],context.variables));
+    if(!Number.isFinite(amount) || amount<0)throw new Error("The wait time must be 0 or greater.");
+    updateInfo();
+    drawVisibleScreen();
+    setCompactStatus("Waiting","updating");
+    byId("brainState").textContent="WAITING";
+    byId("pythonStatus").textContent="Waiting...";
+    byId("workspaceMessage").textContent="Waiting for "+amount+" "+(args[1]==="SECONDS"?"second(s).":"millisecond(s).");
+    await new Promise(resolve=>setTimeout(resolve,amount*(args[1]==="SECONDS"?1000:1)));
+    return;
+  }
+
+  match=line.match(/^brain\.screen\.([A-Za-z_]\w*)\((.*)\)$/);
+  if(!match)throw new Error(explainPythonError(line,node.lineNumber).replace(/^Line \d+:\s*/,""));
+
+  const method=match[1];
+  const rawArgs=splitPythonArguments(match[2]);
+  const values=()=>rawArgs.map(value=>evaluatePythonValue(value,context.variables));
+
+  switch(method){
+    case "print":{
+      const output=values().map(value=>String(value)).join(" ");
+      printText(output);
+      return;
+    }
+    case "set_cursor":{
+      const args=values();
+      if(args.length!==2)throw new Error("set_cursor() needs a row and column.");
+      setCursor(args[0],args[1]);
+      return;
+    }
+    case "next_row":
+      if(rawArgs.length)throw new Error("next_row() does not need a value.");
+      nextRow();
+      return;
+    case "clear_screen":
+      if(rawArgs.length)throw new Error("clear_screen() does not need a value.");
+      clearBuffer();state.row=1;state.col=1;
+      return;
+    case "clear_row":{
+      const args=values();
+      if(args.length>1)throw new Error("clear_row() accepts only one row number.");
+      clearRow(args[0]);
+      return;
+    }
+    case "set_pen_width":{
+      const args=values();
+      if(args.length!==1)throw new Error("set_pen_width() needs one number.");
+      state.penWidth=Math.max(1,numberValue(args[0]));
+      return;
+    }
+    case "set_pen_color":
+    case "set_fill_color":{
+      if(rawArgs.length!==1)throw new Error(method+"() needs one Color value.");
+      const colorMatch=rawArgs[0].match(/^Color\.([A-Z]+)$/);
+      if(!colorMatch || !colors[colorMatch[1]])throw new Error("Choose a listed Color value.");
+      state[method==="set_pen_color"?"pen":"fill"]=colorMatch[1];
+      return;
+    }
+    case "set_font":{
+      if(rawArgs.length!==1)throw new Error("set_font() needs one FontType value.");
+      const fontMatch=rawArgs[0].match(/^FontType\.([A-Z0-9]+)$/);
+      if(!fontMatch || !fonts[fontMatch[1]])throw new Error("Choose a listed FontType value.");
+      state.font=fontMatch[1];
+      return;
+    }
+    case "row":
+    case "column":
+      if(rawArgs.length)throw new Error(method+"() does not need a value.");
+      return;
+    case "draw_pixel":{
+      const args=values(); if(args.length!==2)throw new Error("draw_pixel() needs x and y.");
+      drawPixel(args[0],args[1]); return;
+    }
+    case "draw_line":{
+      const args=values(); if(args.length!==4)throw new Error("draw_line() needs four coordinates.");
+      drawLine(args[0],args[1],args[2],args[3]); return;
+    }
+    case "draw_rectangle":{
+      const args=values(); if(args.length!==4)throw new Error("draw_rectangle() needs x, y, width, and height.");
+      drawRectangle(args[0],args[1],args[2],args[3]); return;
+    }
+    case "draw_circle":{
+      const args=values(); if(args.length!==3)throw new Error("draw_circle() needs center x, center y, and radius.");
+      drawCircle(args[0],args[1],args[2]); return;
+    }
+    default:
+      throw new Error('Unknown Screen command "'+method+'".');
+  }
+}
+
+async function executePythonNodes(nodes,context){
+  for(const node of nodes){
+    if(context.runId!==programRunId)return false;
+    context.steps++;
+    if(context.steps>5000){
+      context.errors.push("Line "+node.lineNumber+": Program stopped after 5,000 steps. Check for a loop that never ends.");
+      return false;
+    }
+    try{
+      if(node.type==="statement"){
+        await executePythonStatement(node,context);
+      }
+      else if(node.type==="for"){
+        const values=pythonRangeValues(node.rangeExpression,context.variables);
+        for(const value of values){
+          context.variables[node.variable]=value;
+          if(!await executePythonNodes(node.body,context))return false;
+        }
+      }
+      else if(node.type==="while"){
+        let repeats=0;
+        while(evaluatePythonCondition(node.condition,context.variables)){
+          repeats++;
+          if(repeats>1000){
+            context.errors.push("Line "+node.lineNumber+": While loop stopped after 1,000 repeats. Check that its condition can become false.");
+            return false;
+          }
+          if(!await executePythonNodes(node.body,context))return false;
+        }
+      }
+    }
+    catch(error){
+      context.errors.push("Line "+node.lineNumber+": "+error.message);
+      return false;
+    }
+  }
+  return true;
+}
+
 async function runPythonProgram(runId){
   beginProgram();
   const errors=[];
-  let inGeneratedConfiguration=false;
-  const lines=editor.value.split("\n");
-
-  for(let index=0;index<lines.length;index++){
-    const raw=lines[index];
-    const line=raw.trim();
-    const lineNumber=index+1;
-    if(/^#region\s+VEXcode Generated Robot Configuration$/i.test(line)){
-      inGeneratedConfiguration=true;
-      continue;
-    }
-    if(/^#endregion\s+VEXcode Generated Robot Configuration$/i.test(line)){
-      inGeneratedConfiguration=false;
-      continue;
-    }
-    if(inGeneratedConfiguration)continue;
-    if(!line || line.startsWith("#") || /^from\s+\S+\s+import\s+/.test(line) || /^import\s+/.test(line) || /^brain\s*=\s*Brain\s*\(\s*\)$/.test(line))continue;
-
-    let match=line.match(/^wait\(\s*(\d+(?:\.\d*)?|\.\d+)\s*,\s*(SECONDS|MSEC)\s*\)$/);
-    if(match){
-      updateInfo();
-      drawVisibleScreen();
-      const milliseconds=Number(match[1])*(match[2]==="SECONDS"?1000:1);
-      setCompactStatus("Waiting","updating");
-      byId("brainState").textContent="WAITING";
-      byId("pythonStatus").textContent="Waiting...";
-      byId("workspaceMessage").textContent="Waiting for "+match[1]+" "+(match[2]==="SECONDS"?"second(s).":"millisecond(s).");
-      await new Promise(resolve=>setTimeout(resolve,milliseconds));
-      if(runId!==programRunId)return;
-      continue;
-    }
-
-    match=line.match(/^brain\.screen\.set_font\(FontType\.(MONO12|MONO15|MONO20|MONO30|MONO40|MONO60|PROP20|PROP30|PROP40|PROP60)\)$/);
-    if(match){state.font=match[1];continue;}
-
-    match=line.match(/^brain\.screen\.set_cursor\(([-\d]+)\s*,\s*([-\d]+)\)$/);
-    if(match){setCursor(match[1],match[2]);continue;}
-
-    match=line.match(/^brain\.screen\.print\((['"])(.*?)\1\)$/);
-    if(match){printText(match[2].replace(/\\n/g,"\n").replace(/\\t/g,"\t"));continue;}
-
-    if(/^brain\.screen\.next_row\(\)$/.test(line)){nextRow();continue;}
-    if(/^brain\.screen\.clear_screen\(\)$/.test(line)){clearBuffer();state.row=1;state.col=1;continue;}
-
-    match=line.match(/^brain\.screen\.clear_row\(\s*([-\d]+)?\s*\)$/);
-    if(match){clearRow(match[1]);continue;}
-
-    match=line.match(/^brain\.screen\.set_pen_width\(([-\d]+)\)$/);
-    if(match){state.penWidth=Math.max(1,numberValue(match[1]));continue;}
-
-    match=line.match(/^brain\.screen\.set_pen_color\(Color\.([A-Z]+)\)$/);
-    if(match && colors[match[1]]){state.pen=match[1];continue;}
-
-    match=line.match(/^brain\.screen\.set_fill_color\(Color\.([A-Z]+)\)$/);
-    if(match && colors[match[1]]){state.fill=match[1];continue;}
-
-    if(/^brain\.screen\.(row|column)\(\)$/.test(line))continue;
-
-    match=line.match(/^brain\.screen\.draw_pixel\(([-\d]+)\s*,\s*([-\d]+)\)$/);
-    if(match){drawPixel(match[1],match[2]);continue;}
-
-    match=line.match(/^brain\.screen\.draw_line\(([-\d]+)\s*,\s*([-\d]+)\s*,\s*([-\d]+)\s*,\s*([-\d]+)\)$/);
-    if(match){drawLine(match[1],match[2],match[3],match[4]);continue;}
-
-    match=line.match(/^brain\.screen\.draw_rectangle\(([-\d]+)\s*,\s*([-\d]+)\s*,\s*([-\d]+)\s*,\s*([-\d]+)\)$/);
-    if(match){drawRectangle(match[1],match[2],match[3],match[4]);continue;}
-
-    match=line.match(/^brain\.screen\.draw_circle\(([-\d]+)\s*,\s*([-\d]+)\s*,\s*([-\d]+)\)$/);
-    if(match){drawCircle(match[1],match[2],match[3]);continue;}
-
-    errors.push(explainPythonError(line,lineNumber));
+  const records=pythonProgramRecords();
+  const firstCode=nextPythonCodeLine(records,0);
+  const baseIndent=firstCode?firstCode.indent:0;
+  const parsed=parsePythonBlock(records,0,baseIndent,errors);
+  if(!errors.length){
+    await executePythonNodes(parsed.nodes,{variables:Object.create(null),errors,runId,steps:0});
   }
-
   if(runId===programRunId)finishRun(errors);
 }
 function runBlocksProgram(){

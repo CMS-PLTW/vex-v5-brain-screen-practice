@@ -2429,6 +2429,61 @@ function topLevelOperator(source,operators){
   return null;
 }
 
+function topLevelArithmeticOperator(source){
+  const candidates=[];
+  let quote="";
+  let depth=0;
+  for(let index=0;index<source.length;index++){
+    const character=source[index];
+    if(quote){
+      if(character==="\\")index++;
+      else if(character===quote)quote="";
+      continue;
+    }
+    if(character==='"' || character==="'"){quote=character;continue;}
+    if(character==="(" || character==="["){depth++;continue;}
+    if(character===")" || character==="]"){depth--;continue;}
+    if(depth!==0 || !"+-*/%".includes(character))continue;
+
+    const before=source.slice(0,index).trimEnd();
+    const previous=before.slice(-1);
+    if(!before || "+-*/%(,[,:".includes(previous))continue;
+    candidates.push({index,operator:character});
+  }
+  const addOrSubtract=candidates.filter(item=>item.operator==="+" || item.operator==="-");
+  return addOrSubtract.at(-1) || candidates.at(-1) || null;
+}
+
+function splitPythonSlice(source){
+  const parts=[];
+  let current="";
+  let quote="";
+  let depth=0;
+  let found=false;
+  for(let index=0;index<source.length;index++){
+    const character=source[index];
+    if(quote){
+      current+=character;
+      if(character==="\\" && index+1<source.length)current+=source[++index];
+      else if(character===quote)quote="";
+      continue;
+    }
+    if(character==='"' || character==="'"){quote=character;current+=character;continue;}
+    if(character==="(" || character==="["){depth++;current+=character;continue;}
+    if(character===")" || character==="]"){depth--;current+=character;continue;}
+    if(character===":" && depth===0){
+      parts.push(current.trim());
+      current="";
+      found=true;
+    }
+    else current+=character;
+  }
+  if(!found)return null;
+  parts.push(current.trim());
+  if(parts.length>3)throw new Error("A slice can use start, end, and step values.");
+  return parts;
+}
+
 function pythonFiniteNumber(value,label){
   const number=Number(value);
   if(!Number.isFinite(number))throw new Error(label+" must be a number.");
@@ -2528,6 +2583,29 @@ function evaluatePythonValue(expression,variables){
     if(!Array.isArray(collection) && typeof collection!=="string"){
       throw new Error('Variable "'+indexMatch[1]+'" is not a list or text value.');
     }
+    const sliceParts=splitPythonSlice(indexMatch[2]);
+    if(sliceParts){
+      const readSlicePart=(part,label)=>{
+        if(part==="")return null;
+        const value=Number(evaluatePythonValue(part,variables));
+        if(!Number.isInteger(value))throw new Error("A slice "+label+" must be a whole number.");
+        return value;
+      };
+      const start=readSlicePart(sliceParts[0],"start");
+      const end=readSlicePart(sliceParts[1],"end");
+      const step=sliceParts.length===3?readSlicePart(sliceParts[2],"step"):1;
+      if(step===0)throw new Error("A slice step cannot be zero.");
+      if(step===1 || step===null)return collection.slice(start===null?undefined:start,end===null?undefined:end);
+
+      const length=collection.length;
+      let from=start===null?(step>0?0:length-1):(start<0?start+length:start);
+      let to=end===null?(step>0?length:-1):(end<0?end+length:end);
+      from=step>0?Math.min(length,Math.max(0,from)):Math.min(length-1,Math.max(-1,from));
+      to=step>0?Math.min(length,Math.max(0,to)):Math.min(length-1,Math.max(-1,to));
+      const values=[];
+      for(let index=from;step>0?index<to:index>to;index+=step)values.push(collection[index]);
+      return typeof collection==="string"?values.join(""):values;
+    }
     const requested=Number(evaluatePythonValue(indexMatch[2],variables));
     if(!Number.isInteger(requested))throw new Error("A list index must be a whole number.");
     const index=requested<0?collection.length+requested:requested;
@@ -2539,7 +2617,7 @@ function evaluatePythonValue(expression,variables){
     throw new Error('Variable "'+source+'" has not been created yet.');
   }
 
-  const operation=topLevelOperator(source,[" + "," - "," * "," / "," % "]);
+  const operation=topLevelArithmeticOperator(source);
   if(operation){
     const left=evaluatePythonValue(source.slice(0,operation.index),variables);
     const right=evaluatePythonValue(source.slice(operation.index+operation.operator.length),variables);

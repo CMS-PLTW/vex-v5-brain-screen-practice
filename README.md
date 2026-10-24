@@ -1,21 +1,25 @@
 # VEX V5 Brain Screen Practice
 
-An interactive classroom simulator for practicing VEX V5 Brain screen programming in either Python or Blocks.
-
-## Features
-
-- Separate Python and Blocks workspaces
-- VEX-style live syntax highlighting in the Python workspace
-- Live 480 × 240 V5 Brain screen preview
-- Text, cursor, color, font, and drawing commands
-- Matching practice grids for VEX font sizes
-- Clear code-error explanations beneath the workspace
-- Browser autosave and project-file save/open
-- Full project snapshot PNG export
-- Confirmation before starting a new project
+An interactive classroom simulator for VEX V5 Python and Blocks, with Brain screen text/drawing and an AR classroom testbed.
 
 ## Live simulator
 
 [Open the VEX V5 Brain Screen Practice simulator](https://cms-pltw.github.io/vex-v5-brain-screen-practice/)
 
-The simulator is designed for classroom practice and supports the Screen commands shown in its command menu.
+The repository name and GitHub Pages URL are unchanged for existing classroom links.
+
+## Features
+
+- Separate Python and Blocks workspaces, syntax highlighting, and screen drawing commands
+- Interactive V5 Brain screen with selectable sensor tester ports and devices
+- Testbed switches, analog sensor sliders, LED, and two motors
+- Drag wheels manually, or use arrow keys (5°) and Shift + arrow (45°)
+- Drag commands into the Python editor at the current cursor; drag Blocks into their workspace
+- Independent command-panel scrolling and resizable workspace layout
+- Folded VEXcode configuration header for new Python projects
+- Browser autosave, project-file save/open, and project snapshot PNG export
+- Run, Stop, Reset, collapsible testbed, and expandable screen preview
+
+Keep `index.html`, `brain-screen.html`, and `testbed-wheel.svg` together. All simulator assets are served from this repository, with no external runtime libraries.
+
+This is a classroom practice simulator; unsupported commands report errors or are marked unavailable.

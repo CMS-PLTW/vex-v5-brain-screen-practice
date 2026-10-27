@@ -343,6 +343,10 @@ canvas{display:block;width:100%;aspect-ratio:2/1;border:1px solid #020303;border
 #editor{z-index:3}
 #traceToggle{padding:4px 8px;border:1px solid #98a55a;border-radius:5px;background:#f3f5e9;color:#31410c;font-size:11px;white-space:nowrap}
 #traceToggle[aria-pressed="true"]{background:#c7e940;border-color:#6b9212;color:#243500;font-weight:bold}
+
+#stepModeToggle,#stepNext{padding:4px 8px;border:1px solid #67859a;border-radius:5px;background:#edf6fb;color:#173d58;font-size:11px;white-space:nowrap}
+#stepModeToggle[aria-pressed="true"]{background:#1673ad;color:white;font-weight:bold}
+#stepNext:disabled{opacity:.45;cursor:default}
 </style>
 </head>
 
@@ -502,6 +506,8 @@ canvas{display:block;width:100%;aspect-ratio:2/1;border:1px solid #020303;border
           <div class="filename-bar">
             <span>main.py</span>
             <div class="filename-actions">
+              <button id="stepModeToggle" type="button" aria-pressed="false" title="Pause before each Python line">Step mode: Off</button>
+              <button id="stepNext" type="button" disabled title="Execute the highlighted line">Step ▶</button>
               <button id="traceToggle" type="button" aria-pressed="false" title="Highlight each executing Python line; this slows execution so lines are visible">Highlight running code: Off</button>
               <div id="editorZoomControls" class="zoom-controls" aria-label="Editor text zoom">
                 <button id="zoomOutBtn" class="zoom-button" type="button" aria-label="Zoom out coding text">A−</button>
@@ -612,10 +618,21 @@ const syntaxHighlight=byId("syntaxHighlight");
 const lineNumbers=byId("lineNumbers");
 const executionHighlight=byId("executionHighlight");
 const traceToggle=byId("traceToggle");
+const stepModeToggle=byId("stepModeToggle"),stepNext=byId("stepNext");
+let steppingEnabled=false,stepResume=null;
+function releaseStep(){const resume=stepResume;stepResume=null;stepNext.disabled=true;if(resume)resume();}
+stepNext.addEventListener("click",()=>{if(stepResume)releaseStep();});
+stepModeToggle.addEventListener("click",()=>{
+ steppingEnabled=!steppingEnabled;
+ stepModeToggle.setAttribute("aria-pressed",String(steppingEnabled));
+ stepModeToggle.textContent="Step mode: "+(steppingEnabled?"On":"Off");
+ if(steppingEnabled){stopLab();runImmediately();}
+ else{releaseStep();renderExecutionHighlight();}
+});
 let tracingEnabled=false;
 let executingLine=null;
 function renderExecutionHighlight(){
- if(!tracingEnabled||!executingLine||activeMode!=="python") {executionHighlight.style.display="none";return;}
+ if(!(tracingEnabled||steppingEnabled)||!executingLine||activeMode!=="python") {executionHighlight.style.display="none";return;}
  const style=getComputedStyle(editor);const height=parseFloat(style.lineHeight),padding=parseFloat(style.paddingTop);
  if(!Number.isFinite(height)||!Number.isFinite(padding)){executionHighlight.style.display="none";return;}
  executionHighlight.style.height=height+"px";
@@ -626,7 +643,11 @@ function clearExecutionHighlight(){executingLine=null;renderExecutionHighlight()
 async function tracePythonLine(node,context){
  if(context.runId!==programRunId)return false;
  executingLine=node.lineNumber;renderExecutionHighlight();
- if(tracingEnabled){await new Promise(resolve=>setTimeout(resolve,120));}
+ if(steppingEnabled){
+  stepNext.disabled=false;byId("pythonStatus").textContent="Paused at line "+node.lineNumber;
+  byId("workspaceMessage").textContent="Paused before line "+node.lineNumber+". Select Step to execute it.";
+  await new Promise(resolve=>{stepResume=resolve;});
+ }else if(tracingEnabled){await new Promise(resolve=>setTimeout(resolve,120));}
  return context.runId===programRunId;
 }
 traceToggle.addEventListener("click",()=>{
@@ -1197,6 +1218,7 @@ byId("blocksModeBtn").addEventListener("click",()=>switchMode("blocks"));
 /* LIVE UPDATE */
 
 function scheduleLiveRun(){
+  releaseStep();
   clearExecutionHighlight();
   clearTimeout(liveTimer);
   programRunId++;
@@ -2278,6 +2300,7 @@ function clearErrorHighlights(){
 }
 
 function finishRun(errors){
+  releaseStep();
   clearExecutionHighlight();
   updateInfo();
   drawVisibleScreen();
@@ -2306,6 +2329,7 @@ function finishRun(errors){
 /* PROGRAM ENGINES */
 
 function runActiveProgram(){
+  releaseStep();
   clearExecutionHighlight();
   const runId=++programRunId;
   if(activeMode==="python")runPythonProgram(runId);
@@ -3014,9 +3038,10 @@ async function executePythonNodes(nodes,context){
       }
       else if(node.type==="while"){
         let firstIteration=true;
-        while(evaluatePythonCondition(node.condition,context.variables)){
+        while(true){
           if(!firstIteration&&!await tracePythonLine(node,context))return false;
           firstIteration=false;
+          if(!evaluatePythonCondition(node.condition,context.variables))break;
           if(!await executePythonNodes(node.body,context))return false;
         }
       }
@@ -3486,7 +3511,7 @@ sensorLayoutObserver.observe(board);for(const [device] of sensorSliderPairs)sens
 requestAnimationFrame(positionSensorSliders);
 controls.insertAdjacentHTML('beforeend','<p>Hold the bumper or limit switch with a mouse, touch, Space, or Enter. Sensor changes are read by the running program. Motor ports: left 13, right 12; three-wire ports match notebook pages 109–121.</p>');
 const labTopbar=document.createElement('div');labTopbar.className='run-controls';labTopbar.setAttribute('role','group');labTopbar.setAttribute('aria-label','Simulator controls');document.querySelector('.topbar').append(labTopbar);for(const [id,title,color] of [['labRun','▶ Run','#15803d'],['labStop','■ Stop','#b91c1c'],['labReset','Reset sensors','#475569']]){const b=document.createElement('button');b.id=id;b.textContent=title;b.style.background=color;labTopbar.append(b);}
-function stopLab(){clearExecutionHighlight();programRunId++;clearTimeout(liveTimer);lab.left_motor.speed=lab.right_motor.speed=0;lab.led=0;setCompactStatus('Stopped','live');byId('brainState').textContent='STOPPED';}
+function stopLab(){releaseStep();clearExecutionHighlight();programRunId++;clearTimeout(liveTimer);lab.left_motor.speed=lab.right_motor.speed=0;lab.led=0;setCompactStatus('Stopped','live');byId('brainState').textContent='STOPPED';}
 byId('labRun').onclick=()=>runImmediately();byId('labStop').onclick=stopLab;byId('labReset').onclick=()=>{stopLab();board.querySelectorAll('.device-slider input').forEach((e,i)=>{e.value=[50,65,20,35][i];e.dispatchEvent(new Event('input'))});lab.left_motor.position=lab.right_motor.position=0;clearBuffer();drawVisibleScreen();};
 const oldBegin=beginProgram;beginProgram=function(){lab.left_motor.speed=lab.right_motor.speed=0;lab.led=0;oldBegin();};
 const oldFinish=finishRun;finishRun=function(errors){lab.left_motor.speed=lab.right_motor.speed=0;oldFinish(errors);};
@@ -3788,6 +3813,7 @@ window.addEventListener("beforeunload",saveAutosave);
 </script>
 </body>
 </html>
+
 
 
 

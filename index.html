@@ -318,6 +318,13 @@ canvas{display:block;width:100%;aspect-ratio:2/1;border:1px solid #020303;border
 .commands-panel{position:sticky;top:10px;max-height:calc(var(--workspace-height) + 70px);overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain;scrollbar-gutter:stable;min-height:0}
 .commands-panel>.menu-header{position:sticky;top:0;z-index:4}
 @media(max-width:900px){.commands-panel{position:relative;top:auto;width:100%;max-height:300px;box-sizing:border-box}}
+
+.editor-context-menu{position:fixed;z-index:10000;min-width:205px;padding:5px;background:#fff;border:1px solid #b9c4d1;border-radius:7px;box-shadow:0 8px 24px #0003;color:#17202c;font:13px Arial,sans-serif}
+.editor-context-menu[hidden]{display:none}
+.editor-context-menu button{display:block;width:100%;padding:7px 10px;border:0;border-radius:4px;background:transparent;text-align:left;color:inherit}
+.editor-context-menu button:hover,.editor-context-menu button:focus-visible{background:#e8f1ff;outline:none}
+.editor-context-menu button:disabled{color:#9aa3ad;cursor:default;background:transparent}
+.editor-context-menu hr{border:0;border-top:1px solid #e2e8f0;margin:4px 0}
 </style>
 </head>
 
@@ -3618,9 +3625,86 @@ blockProgramElement.addEventListener('drop',event=>{
  paletteDrag=null;
 });
 
+
+/* Right-click editing actions for the Python workspace. */
+const editorContextMenu=document.createElement('div');
+editorContextMenu.className='editor-context-menu';
+editorContextMenu.hidden=true;
+editorContextMenu.setAttribute('role','menu');
+editorContextMenu.setAttribute('aria-label','Code editor actions');
+const contextItems=[['undo','Undo'],['redo','Redo'],null,['cut','Cut'],['copy','Copy'],['paste','Paste'],['select','Select All'],null,['comment-add','Add line comments'],['comment-remove','Remove line comments'],['comment-toggle','Toggle line comments']];
+for(const item of contextItems){
+ if(!item){editorContextMenu.append(document.createElement('hr'));continue;}
+ const button=document.createElement('button');button.type='button';button.dataset.action=item[0];button.textContent=item[1];button.setAttribute('role','menuitem');editorContextMenu.append(button);
+}
+document.body.append(editorContextMenu);
+let contextSelection={start:0,end:0};
+function closeEditorContext(){editorContextMenu.hidden=true;}
+function setEditorText(value,start,end){
+ const old=editor.value;editor.value=value;editor.setSelectionRange(start,end);editor.focus();
+ recordPythonChange(old);previousEditorValue=editor.value;updateLineNumbers();
+ if(activeMode==='python')scheduleLiveRun();
+}
+function applyLineComments(action){
+ const text=editor.value,start=contextSelection.start,end=contextSelection.end;
+ const lineStart=start===0?0:text.lastIndexOf('\n',start-1)+1;
+ const lastIndex=end>start && text[end-1]==='\n'?end-1:end;
+ let lineEnd=text.indexOf('\n',lastIndex);if(lineEnd<0)lineEnd=text.length;
+ const lines=text.slice(lineStart,lineEnd).split('\n');
+ const nonempty=lines.filter(line=>line.trim());
+ const remove=action==='comment-remove'||(action==='comment-toggle'&&nonempty.length>0&&nonempty.every(line=>/^\s*#/.test(line)));
+ let edits=[];let offset=lineStart;
+ const result=lines.map(line=>{
+  let changed=line;
+  if(line.trim()){
+   if(remove)changed=line.replace(/^(\s*)# ?/,'$1');
+   else changed=line.replace(/^(\s*)/,'$1# ');
+  }
+  if(changed!==line){const prefix=line.match(/^\s*/)[0].length;edits.push({at:offset+prefix,delta:changed.length-line.length});}
+  offset+=line.length+1;return changed;
+ }).join('\n');
+ const adjust=pos=>Math.max(lineStart,pos+edits.reduce((n,e)=>n+(e.at<=pos?e.delta:0),0));
+ setEditorText(text.slice(0,lineStart)+result+text.slice(lineEnd),adjust(start),adjust(end));
+}
+editor.addEventListener('contextmenu',event=>{
+ event.preventDefault();
+ contextSelection={start:editor.selectionStart,end:editor.selectionEnd};
+ for(const button of editorContextMenu.querySelectorAll('button')){
+  button.disabled=(button.dataset.action==='undo'&&!pythonUndoStack.length)||(button.dataset.action==='redo'&&!pythonRedoStack.length)||(['copy','cut'].includes(button.dataset.action)&&contextSelection.start===contextSelection.end);
+ }
+ editorContextMenu.hidden=false;
+ const rect=editorContextMenu.getBoundingClientRect();
+ editorContextMenu.style.left=Math.max(0,Math.min(event.clientX,window.innerWidth-rect.width-4))+'px';
+ editorContextMenu.style.top=Math.max(0,Math.min(event.clientY,window.innerHeight-rect.height-4))+'px';
+});
+document.addEventListener('pointerdown',event=>{if(!editorContextMenu.hidden&&!editorContextMenu.contains(event.target))closeEditorContext();});
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!editorContextMenu.hidden){closeEditorContext();editor.focus();}});
+editorContextMenu.addEventListener('click',async event=>{
+ const button=event.target.closest('button');if(!button||button.disabled)return;
+ const action=button.dataset.action;closeEditorContext();editor.focus();editor.setSelectionRange(contextSelection.start,contextSelection.end);
+ if(action==='undo'||action==='redo'){byId(action+'Btn').click();editor.focus();return;}
+ if(action==='select'){editor.select();return;}
+ if(action.startsWith('comment-')){applyLineComments(action);return;}
+ const start=contextSelection.start,end=contextSelection.end;
+ if(action==='copy'||action==='cut'){
+  const selected=editor.value.slice(start,end);let copied=false;
+  try{await navigator.clipboard.writeText(selected);copied=true;}catch(error){editor.focus();editor.setSelectionRange(start,end);copied=document.execCommand('copy');}
+  if(!copied){alert('Copy was blocked. Use Ctrl+C (or Command+C) to copy the selected code.');return;}
+  if(action==='cut')setEditorText(editor.value.slice(0,start)+editor.value.slice(end),start,start);
+  return;
+ }
+ if(action==='paste'){
+  let value;
+  try{value=await navigator.clipboard.readText();}catch(error){value=prompt('Paste your text here using Ctrl+V (or Command+V), then choose OK:');}
+  if(value===null||value===undefined)return;
+  setEditorText(editor.value.slice(0,start)+value+editor.value.slice(end),start+value.length,start+value.length);
+ }
+});
+
 window.addEventListener("beforeunload",saveAutosave);
 </script>
 </body>
 </html>
+
 
 

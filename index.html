@@ -325,6 +325,19 @@ canvas{display:block;width:100%;aspect-ratio:2/1;border:1px solid #020303;border
 .editor-context-menu button:hover,.editor-context-menu button:focus-visible{background:#e8f1ff;outline:none}
 .editor-context-menu button:disabled{color:#9aa3ad;cursor:default;background:transparent}
 .editor-context-menu hr{border:0;border-top:1px solid #e2e8f0;margin:4px 0}
+
+/* Numbered rulers sit outside the drawing surface so they never cover the program. */
+.numbered-screen{display:grid;grid-template-columns:0 minmax(0,1fr);grid-template-rows:0 auto;position:relative;min-width:0}
+.numbered-screen.has-grid{grid-template-columns:24px minmax(0,1fr);grid-template-rows:24px auto}
+.numbered-screen .grid-ruler-x{position:relative;grid-column:2;grid-row:1;overflow:visible}
+.numbered-screen .grid-ruler-y{position:relative;grid-column:1;grid-row:2;overflow:visible}
+.numbered-screen canvas{grid-column:2;grid-row:2;width:100%;max-width:none;box-sizing:border-box;margin:0;border:0}
+.grid-ruler-x span,.grid-ruler-y span{position:absolute;display:block;font:8px/1 Arial,sans-serif;color:#f8fafc;pointer-events:none;white-space:nowrap;text-shadow:0 0 2px #000}
+.grid-ruler-x span{bottom:2px;transform:translateX(-50%) rotate(-90deg);transform-origin:center center}
+.grid-ruler-y span{right:3px;transform:translateY(-50%)}
+.large-screen .numbered-screen{margin:10px auto 0;max-width:100%}
+.large-screen .grid-ruler-x span,.large-screen .grid-ruler-y span{color:#211638;text-shadow:none}
+.large-screen .numbered-screen canvas{border:0}
 </style>
 </head>
 
@@ -1219,6 +1232,7 @@ function updateGridSelection(){
   document.querySelectorAll(".grid-option").forEach(button=>{
     button.classList.toggle("active",button.dataset.grid===practiceGrid);
   });
+  updateNumberedGridAxes();
   gridBtn.textContent=practiceGrid==="DRAW30"?"Grid: Drawing":practiceGrid?"Grid: "+practiceGrid:"Grid: Off";
 }
 
@@ -3520,7 +3534,7 @@ const screenDetail=document.createElement('details');screenDetail.className='lar
 const screenSize=document.createElement('label');screenSize.className='screen-size-control';screenSize.textContent='Screen size ';
 const screenSlider=document.createElement('input');screenSlider.type='range';screenSlider.min=40;screenSlider.max=100;screenSlider.value=100;screenSlider.setAttribute('aria-label','Brain screen size');
 const screenSizeValue=document.createElement('output');
-const resizeScreen=()=>{largeCanvas.style.width=screenSlider.value+'%';screenSizeValue.textContent=screenSlider.value+'%';};
+const resizeScreen=()=>{const host=largeCanvas.closest('.numbered-screen');if(host){host.style.width=screenSlider.value+'%';largeCanvas.style.width='100%';}else largeCanvas.style.width=screenSlider.value+'%';screenSizeValue.textContent=screenSlider.value+'%';};
 screenSlider.addEventListener('input',resizeScreen);screenSize.append(screenSlider,screenSizeValue);screenDetail.querySelector('summary').after(screenSize);resizeScreen();
 function mirrorBrain(){largeCanvas.getContext('2d').drawImage(canvas,0,0);requestAnimationFrame(mirrorBrain)}requestAnimationFrame(mirrorBrain);largeCanvas.onpointerdown=e=>{largeCanvas.setPointerCapture(e.pointerId);lab.touch=true;const r=largeCanvas.getBoundingClientRect();lab.x=Math.round((e.clientX-r.left)*480/r.width);lab.y=Math.round((e.clientY-r.top)*240/r.height)};largeCanvas.onpointerup=largeCanvas.onpointercancel=()=>lab.touch=false;
 let dashboardTouchRelease=0;let dashboardTouchStarted=0;
@@ -3701,10 +3715,39 @@ editorContextMenu.addEventListener('click',async event=>{
  }
 });
 
+
+/* Number the actual text cells or 30-pixel coordinates on both screen views. */
+var numberedGridScreens=[];
+function updateNumberedGridAxes(){
+ if(!Array.isArray(numberedGridScreens))return;
+ for(const item of numberedGridScreens){
+  const {host,xAxis,yAxis}=item;xAxis.replaceChildren();yAxis.replaceChildren();
+  const drawing=practiceGrid==='DRAW30',font=fonts[practiceGrid];
+  host.classList.toggle('has-grid',drawing||!!font);
+  if(!drawing&&!font)continue;
+  const add=(axis,label,position,prop)=>{const el=document.createElement('span');el.textContent=label;el.style[prop]=position+'%';axis.append(el);};
+  if(drawing){
+   for(let x=0;x<=480;x+=30)add(xAxis,x,100*x/480,'left');
+   for(let y=0;y<=240;y+=30)add(yAxis,y,100*y/240,'top');
+  }else{
+   for(let col=1;col<=font.cols;col++)add(xAxis,col,100*(col-.5)/font.cols,'left');
+   for(let row=1;row<=font.rows;row++)add(yAxis,row,100*(row-.5)/font.rows,'top');
+  }
+ }
+}
+function addNumberedScreen(surface){
+ const host=document.createElement('div');host.className='numbered-screen';
+ const xAxis=document.createElement('div');xAxis.className='grid-ruler-x';xAxis.setAttribute('aria-hidden','true');
+ const yAxis=document.createElement('div');yAxis.className='grid-ruler-y';yAxis.setAttribute('aria-hidden','true');
+ surface.before(host);host.append(xAxis,yAxis,surface);numberedGridScreens.push({host,xAxis,yAxis});
+}
+addNumberedScreen(canvas);addNumberedScreen(largeCanvas);resizeScreen();updateNumberedGridAxes();
+
 window.addEventListener("beforeunload",saveAutosave);
 </script>
 </body>
 </html>
+
 
 
 

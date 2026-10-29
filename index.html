@@ -3138,7 +3138,7 @@ byId("exampleSelect").addEventListener("change",event=>{
  stopLab();switchMode('python',{run:false});const old=editor.value;
  pythonRegionFold=null;editor.value=demoExampleCode(selected);collapseGeneratedRegion();
  recordPythonChange(old);previousEditorValue=editor.value;updateLineNumbers();
- practiceGrid=selected.grid;updateGridSelection();updateInfo();
+ practiceGrid='';updateGridSelection();updateInfo();
  event.target.value='';startDelayedRun();
 });
 

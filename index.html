@@ -347,6 +347,7 @@ canvas{display:block;width:100%;aspect-ratio:2/1;border:1px solid #020303;border
 #stepModeToggle,#stepNext{padding:4px 8px;border:1px solid #67859a;border-radius:5px;background:#edf6fb;color:#173d58;font-size:11px;white-space:nowrap}
 #stepModeToggle[aria-pressed="true"]{background:#1673ad;color:white;font-weight:bold}
 #stepNext:disabled{opacity:.45;cursor:default}
+.command-caption{display:block;color:#59616b;font:11px Arial,sans-serif;margin-bottom:3px}
 </style>
 </head>
 
@@ -3539,7 +3540,7 @@ const groups=[
 ['Bumper',['bumper_a.pressing()']],['Limit switch',['limit_switch_b.pressing()']],['Light',['light_c.brightness(PERCENT)']],['Line tracker',['line_tracker_d.reflectivity(PERCENT)']],['Potentiometer',['potentiometer_e.angle(PERCENT)']],['Ultrasonic',['ultrasonic_g.distance(MM) / 10','ultrasonic_g.found_object()']],['Brain',['brain.screen.pressing()','brain.screen.x_position()','brain.screen.y_position()','brain.timer.time(SECONDS)']],['Digital Out',['led_f.set(True)','led_f.set(False)']]]],
 ['Console','#f28c00',[['Print',['print("Hello")']]]],
 ['Logic','#e88900',[
-['Control',['wait(1, SECONDS)','while condition:\n    pass','for repeat_count in range(5):\n    pass','if condition:\n    pass','if condition:\n    pass\nelse:\n    pass']],
+['Control',['wait(1, SECONDS)','while not condition:\n    pass','while condition:\n    pass','for repeat_count in range(5):\n    pass','if condition:\n    pass','if condition:\n    pass\nelse:\n    pass']],
 ['Variables',['counter = 0','counter += 1','message = "Hello"']],['Operators',['1 + 1','1 < 2','True and False','not True']]]]
 ];
 pythonPalette.replaceChildren();
@@ -3548,7 +3549,7 @@ for(const [title,color,subgroups] of groups){
  const section=document.createElement('details');section.className='code-category';section.open=title==='Motion';section.style.setProperty('--category-color',color);
  const heading=document.createElement('summary');heading.textContent=title;section.append(heading);
  if(title==='Motion'){const label=document.createElement('label');label.className='motor-target';label.textContent='Insert for ';const select=document.createElement('select');select.id='motorTarget';select.setAttribute('aria-label','Motor for inserted commands');select.innerHTML='<option value="left_motor">Left motor · 13</option><option value="right_motor">Right motor · 12</option>';label.append(select);section.append(label);}
- for(const [subtitle,commands] of subgroups){const h=document.createElement('div');h.className='drawer-subtitle';h.textContent=subtitle;section.append(h);for(const code of commands){const button=document.createElement('button');button.className='command';button.innerHTML=highlightPython(code);button.title=code;
+ for(const [subtitle,commands] of subgroups){const h=document.createElement('div');h.className='drawer-subtitle';h.textContent=subtitle;section.append(h);for(const code of commands){const button=document.createElement('button');button.className='command';button.dataset.code=code;button.innerHTML=(code.startsWith('while not condition:')?'<span class="command-caption">Wait until</span>':'')+highlightPython(code);button.title=code;
  if(unsupportedMotor.test(code)){button.disabled=true;button.title='Reference only: electrical and thermal measurements are unavailable in this simulator.';}
  else button.onclick=()=>insertCommand(code.replace(/\bmotor\./g,byId('motorTarget').value+'.'));
  section.append(button);}}
@@ -3813,6 +3814,7 @@ window.addEventListener("beforeunload",saveAutosave);
 </script>
 </body>
 </html>
+
 
 
 

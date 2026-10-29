@@ -2471,8 +2471,18 @@ function stripPythonInlineComment(raw){
   return raw;
 }
 
+function isStandaloneQuotedLine(line){
+  if(line.length<2 || !['"',"'"].includes(line[0]))return false;
+  const quote=line[0];
+  for(let index=1;index<line.length;index++){
+    if(line[index]==="\\"){index++;continue;}
+    if(line[index]===quote)return !line.slice(index+1).trim();
+  }
+  return false;
+}
+
 function isPythonSetupLine(line){
-  return !line || line.startsWith("#") ||
+  return !line || line.startsWith("#") || isStandaloneQuotedLine(line) ||
     /^from\s+\S+\s+import\s+/.test(line) ||
     /^import\s+/.test(line) ||
     /^brain\s*=\s*Brain\s*\(\s*\)$/.test(line);
@@ -2481,8 +2491,18 @@ function isPythonSetupLine(line){
 function pythonProgramRecords(){
   const records=[];
   let inGeneratedConfiguration=false;
+  let standaloneTripleQuote="";
   editor.value.split("\n").forEach((raw,index)=>{
     const originalTrimmed=raw.trim();
+    if(standaloneTripleQuote){
+      if(originalTrimmed.includes(standaloneTripleQuote))standaloneTripleQuote="";
+      return;
+    }
+    const triple=originalTrimmed.slice(0,3);
+    if(triple==='"'.repeat(3) || triple==="'".repeat(3)){
+      if(originalTrimmed.indexOf(triple,3)<0)standaloneTripleQuote=triple;
+      return;
+    }
     if(/^#region\s+VEXcode Generated Robot Configuration$/i.test(originalTrimmed)){
       inGeneratedConfiguration=true;
       return;
@@ -3869,6 +3889,7 @@ window.addEventListener("beforeunload",saveAutosave);
 </script>
 </body>
 </html>
+
 
 
 

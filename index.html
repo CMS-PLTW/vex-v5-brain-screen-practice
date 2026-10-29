@@ -502,7 +502,7 @@ canvas{display:block;width:100%;aspect-ratio:2/1;border:1px solid #020303;border
             <div class="filename-actions">
               <button id="stepModeToggle" type="button" aria-pressed="false" title="Pause before each Python line">Step mode: Off</button>
               <button id="stepNext" type="button" disabled title="Execute the highlighted line">Step ▶</button>
-              <button id="traceToggle" type="button" aria-pressed="false" title="Highlight the executing Python line without changing program timing. Use Step mode to inspect every line.">Highlight running code: Off</button>
+              <button id="traceToggle" type="button" aria-pressed="false" title="Follow every executed Python line in order at a slower demonstration speed. Step mode advances manually.">Highlight running code: Off</button>
               <div id="editorZoomControls" class="zoom-controls" aria-label="Editor text zoom">
                 <button id="zoomOutBtn" class="zoom-button" type="button" aria-label="Zoom out coding text">A−</button>
                 <span id="zoomValue" class="zoom-value" aria-live="polite">100%</span>
@@ -625,11 +625,6 @@ stepModeToggle.addEventListener("click",()=>{
 });
 let tracingEnabled=false;
 let executingLine=null;
-let executionHighlightFrame=null;
-function queueExecutionHighlight(){
- if(executionHighlightFrame!==null)return;
- executionHighlightFrame=requestAnimationFrame(()=>{executionHighlightFrame=null;renderExecutionHighlight();});
-}
 function renderExecutionHighlight(){
  if(!(tracingEnabled||steppingEnabled)||!executingLine||activeMode!=="python") {executionHighlight.style.display="none";return;}
  const style=getComputedStyle(editor);const height=parseFloat(style.lineHeight),padding=parseFloat(style.paddingTop);
@@ -647,7 +642,16 @@ async function tracePythonLine(node,context){
   stepNext.disabled=false;byId("pythonStatus").textContent="Paused at line "+node.lineNumber;
   byId("workspaceMessage").textContent="Paused before line "+node.lineNumber+". Select Step to execute it.";
   await new Promise(resolve=>{stepResume=resolve;});
- }else if(tracingEnabled){queueExecutionHighlight();}
+ }else if(tracingEnabled){
+  // Await this line's visible highlight before executing it; never queue ahead.
+  const style=getComputedStyle(editor),height=parseFloat(style.lineHeight),padding=parseFloat(style.paddingTop);
+  const top=padding+(node.lineNumber-1)*height;
+  if(top<editor.scrollTop||top+height>editor.scrollTop+editor.clientHeight){
+   editor.scrollTop=Math.max(0,top-editor.clientHeight/3);syncEditorScroll();
+  }
+  renderExecutionHighlight();
+  await new Promise(resolve=>setTimeout(resolve,180));
+ }
  return context.runId===programRunId;
 }
 traceToggle.addEventListener("click",()=>{
@@ -3837,6 +3841,7 @@ window.addEventListener("beforeunload",saveAutosave);
 </script>
 </body>
 </html>
+
 
 
 

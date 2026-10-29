@@ -491,7 +491,6 @@ canvas{display:block;width:100%;aspect-ratio:2/1;border:1px solid #020303;border
           <span>Coding Workspace</span>
           <div class="workspace-title-actions">
             <button id="regionFoldBtn" class="region-fold-btn" hidden>Collapse setup</button>
-            <span id="workspaceModeBadge" class="mode-badge">Python</span>
             <button id="clearBlocksBtn" class="clear-blocks-btn" hidden>Clear Blocks</button>
             <select id="exampleSelect" class="example-select" aria-label="Load an example program"><option value="">Demo examples…</option></select>
           </div>
@@ -1199,7 +1198,6 @@ function switchMode(mode,{run=true}={}){
   byId("blocksWorkspace").hidden=isPython;
   byId("clearBlocksBtn").hidden=isPython;
   byId("editorZoomControls").hidden=!isPython;
-  byId("workspaceModeBadge").textContent=isPython?"Python":"Blocks";
   byId("modeInfo").textContent=isPython?"Python":"Blocks";
   byId("menuHeader").textContent=isPython?"Screen ▾":"Screen Blocks ▾";
   byId("cheatBox").style.display="none";

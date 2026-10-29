@@ -3032,6 +3032,9 @@ async function executePythonNodes(nodes,context){
     try{
       if(node.type==="statement"){
         await executePythonStatement(node,context);
+        if(context.runId!==programRunId)return false;
+        // Tracing must show each completed command immediately, not wait for a batch.
+        if(tracingEnabled||steppingEnabled){updateInfo();drawVisibleScreen({force:true});}
       }
       else if(node.type==="for"){
         const values=pythonRangeValues(node.rangeExpression,context.variables);
@@ -3841,6 +3844,7 @@ window.addEventListener("beforeunload",saveAutosave);
 </script>
 </body>
 </html>
+
 
 
 

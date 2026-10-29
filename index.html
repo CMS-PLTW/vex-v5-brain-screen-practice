@@ -729,6 +729,8 @@ let activeMode="python";
 let practiceGrid="";
 let liveTimer=null;
 let programRunId=0;
+let runCountdownTimer=null;
+function cancelRunCountdown(){clearTimeout(runCountdownTimer);runCountdownTimer=null;}
 let programStartedAt=performance.now();
 let nextBlockId=1;
 let blockProgram=[];
@@ -1213,6 +1215,7 @@ byId("blocksModeBtn").addEventListener("click",()=>switchMode("blocks"));
 /* LIVE UPDATE */
 
 function scheduleLiveRun(){
+  cancelRunCountdown();
   releaseStep();
   clearExecutionHighlight();
   clearTimeout(liveTimer);
@@ -1222,6 +1225,7 @@ function scheduleLiveRun(){
 }
 
 function runImmediately(){
+  cancelRunCountdown();
   clearTimeout(liveTimer);
   runActiveProgram();
 }
@@ -3127,7 +3131,7 @@ byId("exampleSelect").addEventListener("change",event=>{
  pythonRegionFold=null;editor.value=demoExampleCode(selected);collapseGeneratedRegion();
  recordPythonChange(old);previousEditorValue=editor.value;updateLineNumbers();
  practiceGrid=selected.grid;updateGridSelection();updateInfo();
- event.target.value='';runImmediately();
+ event.target.value='';startDelayedRun();
 });
 
 /* SAVE / OPEN */
@@ -3495,7 +3499,7 @@ sensorLayoutObserver.observe(board);for(const [device] of sensorSliderPairs)sens
 requestAnimationFrame(positionSensorSliders);
 controls.insertAdjacentHTML('beforeend','<p>Hold the bumper or limit switch with a mouse, touch, Space, or Enter. Sensor changes are read by the running program. Motor ports: left 13, right 12; three-wire ports match notebook pages 109–121.</p>');
 const labTopbar=document.createElement('div');labTopbar.className='run-controls';labTopbar.setAttribute('role','group');labTopbar.setAttribute('aria-label','Simulator controls');document.querySelector('.topbar').append(labTopbar);for(const [id,title,color] of [['labRun','▶ Run','#15803d'],['labStop','■ Stop','#b91c1c'],['labReset','Reset sensors','#475569']]){const b=document.createElement('button');b.id=id;b.textContent=title;b.style.background=color;labTopbar.append(b);}
-function stopLab(){releaseStep();clearExecutionHighlight();programRunId++;clearTimeout(liveTimer);lab.left_motor.speed=lab.right_motor.speed=0;lab.led=0;setCompactStatus('Stopped','live');byId('brainState').textContent='STOPPED';}
+function stopLab(){cancelRunCountdown();releaseStep();clearExecutionHighlight();programRunId++;clearTimeout(liveTimer);lab.left_motor.speed=lab.right_motor.speed=0;lab.led=0;setCompactStatus('Stopped','live');byId('brainState').textContent='STOPPED';}
 byId('labRun').onclick=()=>runImmediately();byId('labStop').onclick=stopLab;byId('labReset').onclick=()=>{stopLab();board.querySelectorAll('.device-slider input').forEach((e,i)=>{e.value=[50,65,20,35][i];e.dispatchEvent(new Event('input'))});lab.left_motor.position=lab.right_motor.position=0;clearBuffer();drawVisibleScreen();};
 const oldBegin=beginProgram;beginProgram=function(){lab.left_motor.speed=lab.right_motor.speed=0;lab.led=0;oldBegin();};
 const oldFinish=finishRun;finishRun=function(errors){lab.left_motor.speed=lab.right_motor.speed=0;oldFinish(errors);};
@@ -3808,10 +3812,28 @@ for(const group of demoExampleGroups){
  byId('exampleSelect').append(optgroup);
 }
 
+
+function startDelayedRun(){
+ stopLab();
+ let seconds=3;
+ const countdown=()=>{
+  if(seconds===0){runCountdownTimer=null;runImmediately();return;}
+  const label='Starting in '+seconds+'…';
+  runStateLabel.textContent=label;byId('brainState').textContent=label;
+  byId(activeMode==='python'?'pythonStatus':'blocksStatus').textContent=label;
+  byId('workspaceMessage').textContent=label+' Press Stop to cancel.';
+  setCompactStatus(label,'updating');
+  seconds--;runCountdownTimer=setTimeout(countdown,1000);
+ };
+ countdown();
+}
+byId('labRun').onclick=startDelayedRun;
+
 window.addEventListener("beforeunload",saveAutosave);
 </script>
 </body>
 </html>
+
 
 
 

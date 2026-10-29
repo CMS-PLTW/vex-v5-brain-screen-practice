@@ -498,7 +498,6 @@ canvas{display:block;width:100%;aspect-ratio:2/1;border:1px solid #020303;border
         <div class="workspace-title">
           <span>Coding Workspace</span>
           <div class="workspace-title-actions">
-            <button id="regionFoldBtn" class="region-fold-btn" hidden>Collapse setup</button>
             <button id="clearBlocksBtn" class="clear-blocks-btn" hidden>Clear Blocks</button>
             <select id="exampleSelect" class="example-select" aria-label="Load an example program"><option value="">Demo examples…</option></select>
           </div>
@@ -508,6 +507,7 @@ canvas{display:block;width:100%;aspect-ratio:2/1;border:1px solid #020303;border
           <div class="filename-bar">
             <span>main.py</span>
             <div class="filename-actions">
+            <button id="regionFoldBtn" class="region-fold-btn" hidden>Collapse setup</button>
               <button id="stepModeToggle" type="button" aria-pressed="false" title="Pause before each Python line">Step mode: Off</button>
               <button id="stepNext" type="button" disabled title="Execute the highlighted line">Step ▶</button>
               <button id="traceToggle" type="button" aria-pressed="false" title="Follow every executed Python line in order at a slower demonstration speed. Step mode advances manually.">Highlight running code: Off</button>

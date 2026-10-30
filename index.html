@@ -274,7 +274,7 @@ canvas{display:block;width:100%;aspect-ratio:2/1;border:1px solid #020303;border
 @media(min-width:901px) and (max-width:1250px){.main{grid-template-columns:175px minmax(640px,1fr)}.info-panel{display:block;grid-column:1/-1}.info-panel #testerRows{display:grid;grid-template-columns:repeat(3,1fr)}.pane-divider{display:block}}
 @media(max-width:900px){.main{display:flex;flex-direction:column}.center{display:flex;flex-direction:column;width:100%;gap:12px}.pane-divider{display:none}.info-panel{display:block;width:100%;order:2}.menu{width:100%;max-height:180px;overflow:auto}.workspace,.testbed-wrap{width:100%}}
 
-.code-category{border-bottom:1px solid #dce1e7}.code-category>summary{cursor:pointer;padding:10px 12px;border-left:7px solid var(--category-color);font-size:13px;font-weight:bold;background:#f4f6f8}.code-category .command{white-space:pre-wrap;overflow-wrap:anywhere;padding:8px 10px;font-size:11px;line-height:1.5;background:white;border-bottom:1px solid #eef0f3}.code-category .command:hover{background:#e9f2fc}
+.code-category{border-bottom:1px solid #dce1e7}.code-category>summary{cursor:pointer;padding:10px 12px;border-left:7px solid var(--category-color);font-size:13px;font-weight:bold;background:#f4f6f8}.code-category .command{white-space:pre;overflow-wrap:normal;word-break:normal;padding:8px 10px;font-size:11px;line-height:1.5;background:white;border-bottom:1px solid #eef0f3}.code-category .command:hover{background:#e9f2fc}
 #blocksToolbox .palette-block{background:#a45ac9;border-radius:4px;clip-path:polygon(0 0,12px 0,16px 4px,36px 4px,40px 0,100% 0,100% calc(100% - 4px),40px calc(100% - 4px),36px 100%,16px 100%,12px calc(100% - 4px),0 calc(100% - 4px));padding:10px 12px}
 #blocksToolbox .query-block{background:#2b9caa;border-radius:18px;clip-path:none}
 :root{--code-object:#795e26;--code-string:#a31515;--code-number:#098658;--code-enum:#0070c1;--cursor:#a45ac9;--mutator:#a45ac9;--draw:#a45ac9;--query:#2b9caa}.syntax-keyword{color:#0000ff}.syntax-comment{color:#008000}.syntax-vex-object{color:#267f99}.syntax-method{color:#795e26}.syntax-vex-type{color:#267f99}.syntax-constant{color:#0070c1}
@@ -315,7 +315,7 @@ canvas{display:block;width:100%;aspect-ratio:2/1;border:1px solid #020303;border
 .testbed .motor .wheel{border:0;background:transparent url("testbed-wheel.svg") center/contain no-repeat;box-shadow:none;isolation:isolate}
 .testbed .motor .wheel::after{content:"";position:absolute;left:calc(50% - 2.5px);top:3px;width:5px;height:12px;background:#fff;border-radius:1.5px;box-shadow:0 0 1px 1px #142d24;z-index:2}
 /* Scroll commands independently of the editor and simulator. */
-.commands-panel{position:sticky;top:10px;max-height:calc(var(--workspace-height) + 70px);overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain;scrollbar-gutter:stable;min-height:0}
+.commands-panel{position:sticky;top:10px;max-height:calc(var(--workspace-height) + 70px);overflow-y:auto;overflow-x:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable;min-height:0}
 .commands-panel>.menu-header{position:sticky;top:0;z-index:4}
 @media(max-width:900px){.commands-panel{position:relative;top:auto;width:100%;max-height:300px;box-sizing:border-box}}
 
@@ -356,6 +356,8 @@ canvas{display:block;width:100%;aspect-ratio:2/1;border:1px solid #020303;border
 #testbedStarterSelect{background:#08775e;color:#fff;border:2px solid #045d48;border-radius:7px;font-size:13px;font-weight:bold;min-height:36px;padding:6px 10px;box-shadow:0 2px 4px #0002;max-width:100%}
 #testbedStarterSelect option{background:#fff;color:#172033}
 #testbedStarterSelect:focus-visible{outline:3px solid #f3b52c;outline-offset:2px}
+
+.commands-panel .command{white-space:pre;overflow-wrap:normal;word-break:normal;width:max-content;min-width:100%;box-sizing:border-box}
 </style>
 </head>
 

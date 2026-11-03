@@ -3966,7 +3966,7 @@ window.addEventListener('resize',closeCodeLibrary);window.addEventListener('scro
 
 
 const themeToggle=document.getElementById('themeToggle');
-document.querySelector('.topbar').append(themeToggle);
+document.getElementById('gridBtn').closest('.grid-control').after(themeToggle);
 function applySimulatorTheme(dark){
  document.documentElement.dataset.theme=dark?'dark':'light';
  themeToggle.setAttribute('aria-pressed',String(dark));themeToggle.textContent='Dark mode: '+(dark?'On':'Off');

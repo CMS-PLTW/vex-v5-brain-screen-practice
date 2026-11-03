@@ -3953,12 +3953,12 @@ function chooseCodeBranch(branch){
  if(branch==='testbed'){for(const [index,example] of testbedStarterCodes.entries())codeLibraryContent.append(codeLibraryLeaf(example.name,'testbed_'+index));}
  else for(const group of demoExampleGroups){const detail=document.createElement('details'),heading=document.createElement('summary');heading.textContent=group.name;detail.append(heading);for(const example of group.items)detail.append(codeLibraryLeaf(example.title,example.id));codeLibraryContent.append(detail);}
 }
-for(const [key,label] of [['testbed','Testbed codes ›'],['examples','Examples ›'],['practice','Practice codes']]){
+for(const [key,label] of [['examples','Examples ›'],['practice','Practice codes'],['testbed','Testbed codes ›']]){
  const button=document.createElement('button');button.type='button';button.dataset.branch=key;button.textContent=label;
  if(key==='practice'){button.disabled=true;const note=document.createElement('small');note.textContent='Coming soon';button.append(note);}else{button.setAttribute('aria-pressed','false');button.onclick=()=>chooseCodeBranch(key);}
  codeLibraryBranches.append(button);
 }
-chooseCodeBranch('testbed');
+chooseCodeBranch('examples');
 codeLibraryToggle.onclick=()=>{const open=codeLibraryPopup.hidden;codeLibraryPopup.hidden=!open;codeLibraryToggle.setAttribute('aria-expanded',String(open));if(open)positionCodeLibrary();};
 document.addEventListener('pointerdown',event=>{if(!codeLibraryPopup.contains(event.target)&&!codeLibraryToggle.contains(event.target))closeCodeLibrary();});
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!codeLibraryPopup.hidden){closeCodeLibrary();codeLibraryToggle.focus();}});

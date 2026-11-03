@@ -355,6 +355,19 @@ canvas{display:block;width:100%;aspect-ratio:2/1;border:1px solid #020303;border
 
 
 .commands-panel .command{white-space:pre;overflow-wrap:normal;word-break:normal;width:max-content;min-width:100%;box-sizing:border-box}
+
+.code-library-toggle{background:#164fba;color:#fff;border:2px solid #103e93;border-radius:7px;font-size:13px;font-weight:bold;min-height:36px;padding:6px 12px;box-shadow:0 2px 4px #0002;cursor:pointer}
+.code-library-popup{position:fixed;z-index:10000;display:grid;grid-template-columns:145px minmax(0,285px);max-width:calc(100vw - 16px);max-height:65vh;overflow:auto;background:#fff;border:1px solid #aab9ca;border-radius:8px;box-shadow:0 8px 25px #0003;color:#172033;text-align:left;font:13px Arial,sans-serif}
+.code-library-popup[hidden]{display:none}
+.code-library-branches{padding:6px;border-right:1px solid #dbe3ed;background:#f1f5fa}
+.code-library-branches button,.code-library-leaf{display:block;width:100%;border:0;border-radius:4px;padding:9px 10px;background:transparent;color:#172033;text-align:left;cursor:pointer}
+.code-library-branches button[aria-pressed="true"]{background:#dceaff;color:#103e93;font-weight:bold}
+.code-library-branches button:disabled{color:#798492;cursor:default}
+.code-library-branches small{display:block;font-size:10px;margin-top:3px}
+.code-library-content{padding:6px;min-width:0;overflow:auto}
+.code-library-content summary{padding:9px;cursor:pointer;font-weight:bold;color:#164fba}
+.code-library-leaf:hover,.code-library-leaf:focus-visible{background:#e8f2ff}
+.code-library-popup button:focus-visible,.code-library-toggle:focus-visible{outline:2px solid #f3b52c;outline-offset:-2px}
 </style>
 </head>
 
@@ -3881,10 +3894,37 @@ for(const [index,example] of testbedStarterCodes.entries()){
 const exampleMenu=byId('exampleSelect');exampleMenu.insertBefore(testbedCodeGroup,exampleMenu.querySelector('optgroup'));
 exampleMenu.setAttribute('aria-label','Example codes: Testbed codes and Examples');
 
+
+const codeLibrarySelect=byId('exampleSelect');codeLibrarySelect.hidden=true;
+const codeLibraryToggle=document.createElement('button');codeLibraryToggle.type='button';codeLibraryToggle.className='code-library-toggle';codeLibraryToggle.textContent='Example codes ▾';codeLibraryToggle.setAttribute('aria-expanded','false');codeLibraryToggle.setAttribute('aria-controls','codeLibraryPopup');codeLibrarySelect.after(codeLibraryToggle);
+const codeLibraryPopup=document.createElement('div');codeLibraryPopup.id='codeLibraryPopup';codeLibraryPopup.className='code-library-popup';codeLibraryPopup.hidden=true;codeLibraryPopup.setAttribute('aria-label','Example code library');
+const codeLibraryBranches=document.createElement('div');codeLibraryBranches.className='code-library-branches';
+const codeLibraryContent=document.createElement('div');codeLibraryContent.className='code-library-content';codeLibraryPopup.append(codeLibraryBranches,codeLibraryContent);document.body.append(codeLibraryPopup);
+function closeCodeLibrary(){codeLibraryPopup.hidden=true;codeLibraryToggle.setAttribute('aria-expanded','false');}
+function positionCodeLibrary(){const r=codeLibraryToggle.getBoundingClientRect();codeLibraryPopup.style.left=Math.max(8,Math.min(r.left,innerWidth-codeLibraryPopup.offsetWidth-8))+'px';codeLibraryPopup.style.top=Math.max(8,Math.min(r.bottom+4,innerHeight-codeLibraryPopup.offsetHeight-8))+'px';}
+function codeLibraryLeaf(title,value){const button=document.createElement('button');button.type='button';button.className='code-library-leaf';button.textContent=title;button.onclick=()=>{closeCodeLibrary();codeLibrarySelect.value=value;codeLibrarySelect.dispatchEvent(new Event('change'));};return button;}
+function chooseCodeBranch(branch){
+ codeLibraryContent.replaceChildren();
+ for(const button of codeLibraryBranches.querySelectorAll('button:not(:disabled)'))button.setAttribute('aria-pressed',String(button.dataset.branch===branch));
+ if(branch==='testbed'){for(const [index,example] of testbedStarterCodes.entries())codeLibraryContent.append(codeLibraryLeaf(example.name,'testbed_'+index));}
+ else for(const group of demoExampleGroups){const detail=document.createElement('details'),heading=document.createElement('summary');heading.textContent=group.name;detail.append(heading);for(const example of group.items)detail.append(codeLibraryLeaf(example.title,example.id));codeLibraryContent.append(detail);}
+}
+for(const [key,label] of [['testbed','Testbed codes ›'],['examples','Examples ›'],['practice','Practice codes']]){
+ const button=document.createElement('button');button.type='button';button.dataset.branch=key;button.textContent=label;
+ if(key==='practice'){button.disabled=true;const note=document.createElement('small');note.textContent='Coming soon';button.append(note);}else{button.setAttribute('aria-pressed','false');button.onclick=()=>chooseCodeBranch(key);}
+ codeLibraryBranches.append(button);
+}
+chooseCodeBranch('testbed');
+codeLibraryToggle.onclick=()=>{const open=codeLibraryPopup.hidden;codeLibraryPopup.hidden=!open;codeLibraryToggle.setAttribute('aria-expanded',String(open));if(open)positionCodeLibrary();};
+document.addEventListener('pointerdown',event=>{if(!codeLibraryPopup.contains(event.target)&&!codeLibraryToggle.contains(event.target))closeCodeLibrary();});
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!codeLibraryPopup.hidden){closeCodeLibrary();codeLibraryToggle.focus();}});
+window.addEventListener('resize',closeCodeLibrary);window.addEventListener('scroll',closeCodeLibrary);
+
 window.addEventListener("beforeunload",saveAutosave);
 </script>
 </body>
 </html>
+
 
 
 

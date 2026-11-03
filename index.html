@@ -3850,7 +3850,7 @@ function demoExampleCode(example){
  return starterCode()+'\n'+(declarations.length?declarations.join('\n')+'\n\n':'')+example.body+'\n';
 }
 for(const group of demoExampleGroups){
- const optgroup=document.createElement('optgroup');optgroup.label='Practice codes — '+group.name;
+ const optgroup=document.createElement('optgroup');optgroup.label='Examples — '+group.name;
  for(const example of group.items){demoExampleLookup[example.id]=example;const option=document.createElement('option');option.value=example.id;option.textContent=example.title;optgroup.append(option);}
  byId('exampleSelect').append(optgroup);
 }
@@ -3879,7 +3879,7 @@ for(const [index,example] of testbedStarterCodes.entries()){
  const option=document.createElement('option');option.value='testbed_'+index;option.textContent=example.name;testbedCodeGroup.append(option);
 }
 const exampleMenu=byId('exampleSelect');exampleMenu.insertBefore(testbedCodeGroup,exampleMenu.querySelector('optgroup'));
-exampleMenu.setAttribute('aria-label','Example codes: Testbed codes and Practice codes');
+exampleMenu.setAttribute('aria-label','Example codes: Testbed codes and Examples');
 
 window.addEventListener("beforeunload",saveAutosave);
 </script>

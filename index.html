@@ -3896,8 +3896,8 @@ exampleMenu.setAttribute('aria-label','Example codes: Testbed codes and Examples
 
 
 const codeLibrarySelect=byId('exampleSelect');codeLibrarySelect.hidden=true;
-const codeLibraryToggle=document.createElement('button');codeLibraryToggle.type='button';codeLibraryToggle.className='code-library-toggle';codeLibraryToggle.textContent='Example codes ▾';codeLibraryToggle.setAttribute('aria-expanded','false');codeLibraryToggle.setAttribute('aria-controls','codeLibraryPopup');codeLibrarySelect.after(codeLibraryToggle);
-const codeLibraryPopup=document.createElement('div');codeLibraryPopup.id='codeLibraryPopup';codeLibraryPopup.className='code-library-popup';codeLibraryPopup.hidden=true;codeLibraryPopup.setAttribute('aria-label','Example code library');
+const codeLibraryToggle=document.createElement('button');codeLibraryToggle.type='button';codeLibraryToggle.className='code-library-toggle';codeLibraryToggle.textContent='Code Library ▾';codeLibraryToggle.setAttribute('aria-expanded','false');codeLibraryToggle.setAttribute('aria-controls','codeLibraryPopup');codeLibrarySelect.after(codeLibraryToggle);
+const codeLibraryPopup=document.createElement('div');codeLibraryPopup.id='codeLibraryPopup';codeLibraryPopup.className='code-library-popup';codeLibraryPopup.hidden=true;codeLibraryPopup.setAttribute('aria-label','Code Library');
 const codeLibraryBranches=document.createElement('div');codeLibraryBranches.className='code-library-branches';
 const codeLibraryContent=document.createElement('div');codeLibraryContent.className='code-library-content';codeLibraryPopup.append(codeLibraryBranches,codeLibraryContent);document.body.append(codeLibraryPopup);
 function closeCodeLibrary(){codeLibraryPopup.hidden=true;codeLibraryToggle.setAttribute('aria-expanded','false');}

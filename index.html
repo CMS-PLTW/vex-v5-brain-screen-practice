@@ -13,6 +13,9 @@
 <meta name="twitter:title" content="VEX V5 Screen Simulator">
 <meta name="twitter:description" content="Practice Python and Blocks on a simulated VEX V5 Brain screen.">
 
+<script>
+try{if(localStorage.getItem('vex-v5-screen-simulator.theme')==='dark')document.documentElement.dataset.theme='dark';}catch{}
+</script>
 <style>
 *{box-sizing:border-box}
 :root{
@@ -368,6 +371,46 @@ canvas{display:block;width:100%;aspect-ratio:2/1;border:1px solid #020303;border
 .code-library-content summary{padding:9px;cursor:pointer;font-weight:bold;color:#164fba}
 .code-library-leaf:hover,.code-library-leaf:focus-visible{background:#e8f2ff}
 .code-library-popup button:focus-visible,.code-library-toggle:focus-visible{outline:2px solid #f3b52c;outline-offset:-2px}
+
+#themeToggle{background:#334155;border-color:#64748b}
+:root[data-theme="dark"]{color-scheme:dark;--ink:#e5eaf2;--border:#465367;--soft:#242c3a;--code-object:#75c7ec;--code-string:#f29d95;--code-number:#9bdfbd;--code-enum:#ffbf70}
+html[data-theme="dark"] body{background:#141923;color:#e5eaf2}
+html[data-theme="dark"] :is(.panel,.workspace,.editor-code-layer,#syntaxHighlight,.cheat-box,.tester-panel,.tester-tools,.sim-console,dialog,.grid-popup,.editor-context-menu,.code-library-popup){background:#1c2431;color:#e5eaf2;border-color:#465367}
+html[data-theme="dark"] :is(.workspace-title,.filename-bar,.menu-header,.section-title,.cheat-head,.toolbox-note,.workspace-message,.info-title,.info-box,.drawer-subtitle,.motor-target,.code-library-branches,.grid-popup-title){background:#263142;color:#e5eaf2;border-color:#465367}
+html[data-theme="dark"] .code-category>summary{background:#263142;color:#f1f5fa;border-bottom-color:#465367}
+html[data-theme="dark"] .commands-panel .command{background:#1c2431;color:#e5eaf2;border-color:#344154}
+html[data-theme="dark"] .commands-panel .command:hover{background:#303f55}
+html[data-theme="dark"] :is(.command-caption,.cheat-foot,.cheat-close,.toolbox-note,.workspace-message,.popup-screen-hint,.info-label){color:#b8c7da}
+html[data-theme="dark"] :is(.project input,.motor-target select,.block-input,.block-select){background:#182230;color:#edf2f9;border-color:#64748b}
+html[data-theme="dark"] #lineNumbers{background:#202b3a;color:#a4b4ca;border-color:#465367}
+html[data-theme="dark"] #editor{caret-color:#f8fafc}
+html[data-theme="dark"] .line-number.has-error{background:#8e2828;color:#fff}
+html[data-theme="dark"] :is(.syntax-keyword,.syntax-placeholder){color:#c5a5ff}
+html[data-theme="dark"] :is(.syntax-string,.string){color:#f29d95}
+html[data-theme="dark"] :is(.syntax-comment){color:#8fd49b}
+html[data-theme="dark"] :is(.syntax-vex-object,.obj,.syntax-vex-type){color:#75c7ec}
+html[data-theme="dark"] :is(.syntax-method,.method){color:#f1d28c}
+html[data-theme="dark"] :is(.syntax-constant,.enum){color:#ffbf70}
+html[data-theme="dark"] :is(.syntax-number,.number){color:#9bdfbd}
+html[data-theme="dark"] .syntax-operator{color:#d4deed}
+html[data-theme="dark"] #executionHighlight{background:rgba(190,230,48,.27)}
+html[data-theme="dark"] :is(.region-fold-btn,.zoom-controls,.zoom-button,#stepModeToggle,#stepNext,#traceToggle){background:#303e53;color:#e5eaf2;border-color:#6f819a}
+html[data-theme="dark"] #traceToggle[aria-pressed="true"]{background:#c7e940;color:#243500;border-color:#8da51c}
+html[data-theme="dark"] #stepModeToggle[aria-pressed="true"]{background:#176ea7;color:#fff}
+html[data-theme="dark"] .zoom-value{color:#dce6f4}
+html[data-theme="dark"] :is(.grid-option,.editor-context-menu button,.code-library-branches button,.code-library-leaf,.cheat-item){color:#e5eaf2;background:transparent}
+html[data-theme="dark"] :is(.grid-option.active,.grid-option:hover,.editor-context-menu button:hover,.editor-context-menu button:focus-visible,.code-library-leaf:hover,.code-library-leaf:focus-visible,.code-library-branches button[aria-pressed="true"]){background:#344b6a;color:#fff}
+html[data-theme="dark"] .code-library-content summary{color:#8fc9ff}
+html[data-theme="dark"] :is(.editor-context-menu button:disabled,.code-library-branches button:disabled){color:#8997aa;background:transparent}
+html[data-theme="dark"] .blocks-shell{background-color:#1c2636;background-image:linear-gradient(#52647e33 1px,transparent 1px),linear-gradient(90deg,#52647e33 1px,transparent 1px)}
+html[data-theme="dark"] .empty-blocks{background:#263142;color:#c5d2e3;border-color:#52647e}
+html[data-theme="dark"] .run-controls{background:#263142;border-color:#52647e}
+html[data-theme="dark"] .testbed{background-color:#30394b;background-image:radial-gradient(#8e9bad 2px,#1d2635 3px,transparent 3.5px);border-color:#526078}
+html[data-theme="dark"] .large-screen{background:#29223e;border-color:#8e70cb;color:#e6dcff}
+html[data-theme="dark"] .large-screen :is(.grid-ruler-x span,.grid-ruler-y span){color:#ede8ff}
+html[data-theme="dark"] :is(.sensor-controls,.testbed-heading){background:#263142;color:#e5eaf2;border-color:#465367}
+html[data-theme="dark"] .sensor-controls :is(label,p){color:#c5d2e3}
+html[data-theme="dark"] .topbar>button:disabled{background:#303b4c;color:#94a3b8;border-color:#465367}
 </style>
 </head>
 
@@ -390,6 +433,7 @@ canvas{display:block;width:100%;aspect-ratio:2/1;border:1px solid #020303;border
     <button id="newBtn">New</button>
     <button id="saveBtn">Save .v5python</button>
     <button id="openBtn">Open .v5python</button>
+    <button id="themeToggle" type="button" aria-pressed="false">Dark mode: Off</button>
     <button id="snapshotBtn">Download Project Snapshot</button>
 
     <div class="grid-control">
@@ -3920,10 +3964,23 @@ document.addEventListener('pointerdown',event=>{if(!codeLibraryPopup.contains(ev
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!codeLibraryPopup.hidden){closeCodeLibrary();codeLibraryToggle.focus();}});
 window.addEventListener('resize',closeCodeLibrary);window.addEventListener('scroll',closeCodeLibrary);
 
+
+const themeToggle=document.getElementById('themeToggle');
+function applySimulatorTheme(dark){
+ document.documentElement.dataset.theme=dark?'dark':'light';
+ themeToggle.setAttribute('aria-pressed',String(dark));themeToggle.textContent='Dark mode: '+(dark?'On':'Off');
+}
+applySimulatorTheme(document.documentElement.dataset.theme==='dark');
+themeToggle.addEventListener('click',()=>{
+ const dark=document.documentElement.dataset.theme!=='dark';applySimulatorTheme(dark);
+ try{localStorage.setItem('vex-v5-screen-simulator.theme',dark?'dark':'light');}catch{}
+});
+
 window.addEventListener("beforeunload",saveAutosave);
 </script>
 </body>
 </html>
+
 
 
 

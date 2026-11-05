@@ -3045,7 +3045,7 @@ async function executePythonStatement(node,context){
       return;
     case "clear_screen":
       if(rawArgs.length)throw new Error("clear_screen() does not need a value.");
-      clearBuffer();state.row=1;state.col=1;
+      clearBuffer();
       return;
     case "clear_row":{
       const args=values();
@@ -3992,6 +3992,7 @@ window.addEventListener("beforeunload",saveAutosave);
 </script>
 </body>
 </html>
+
 
 
 

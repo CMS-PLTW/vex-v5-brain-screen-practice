@@ -487,7 +487,7 @@ html[data-theme="dark"] .topbar>button:disabled{background:#303b4c;color:#94a3b8
 
         <div class="section-title">Timing</div>
         <div class="command-list">
-          <button class="command" data-code="wait(1, SECONDS)"><span class="method">wait</span>(<span class="number">1</span>, <span class="enum">SECONDS</span>)</button>
+          <button class="command" data-code="wait(0.5, SECONDS)"><span class="method">wait</span>(<span class="number">0.5</span>, <span class="enum">SECONDS</span>)</button>
         </div>
 
         <div class="section-title">Variables</div>
@@ -2457,7 +2457,7 @@ function explainPythonError(line,lineNumber){
     return prefix+"Check the variable name and value.";
   }
   if(/^wait\s*\(/.test(line)){
-    return prefix+"Use wait(1, SECONDS) or wait(500, MSEC).";
+    return prefix+"Use wait(0.5, SECONDS) for decimal seconds or wait(500, MSEC).";
   }
   if(!line.startsWith("brain.screen.")){
     return prefix+'Start Screen commands with "brain.screen." or use wait(1, SECONDS).';
@@ -3002,14 +3002,14 @@ async function executePythonStatement(node,context){
     return;
   }
 
-  match=line.match(/^wait\((.*)\)$/);
+  match=line.match(/^wait\s*\((.*)\)$/);
   if(match){
     const args=splitPythonArguments(match[1]);
     if(args.length!==2 || !/^(SECONDS|MSEC)$/.test(args[1])){
-      throw new Error("Use wait(1, SECONDS) or wait(500, MSEC).");
+      throw new Error("Use wait(0.5, SECONDS) for decimal seconds or wait(500, MSEC).");
     }
     const amount=Number(evaluatePythonValue(args[0],context.variables));
-    if(!Number.isFinite(amount) || amount<0)throw new Error("The wait time must be 0 or greater.");
+    if(!Number.isFinite(amount) || amount<0)throw new Error("The wait time must be a number 0 or greater; decimals such as 0.5 are allowed.");
     updateInfo();
     drawVisibleScreen({force:true});
     setCompactStatus("Waiting","updating");
@@ -3630,7 +3630,7 @@ const groups=[
 ['Bumper',['bumper_a.pressing()']],['Limit switch',['limit_switch_b.pressing()']],['Light',['light_c.brightness(PERCENT)']],['Line tracker',['line_tracker_d.reflectivity(PERCENT)']],['Potentiometer',['potentiometer_e.angle(PERCENT)']],['Ultrasonic',['ultrasonic_g.distance(MM)','ultrasonic_g.found_object()']],['Brain',['brain.screen.pressing()','brain.screen.x_position()','brain.screen.y_position()','brain.timer.time(SECONDS)']],['Digital Out',['led_f.set(True)','led_f.set(False)']]]],
 ['Console','#f28c00',[['Print',['print("Hello")']]]],
 ['Logic','#e88900',[
-['Control',['wait(1, SECONDS)','while not condition:\n    pass','while condition:\n    pass','for repeat_count in range(5):\n    pass','if condition:\n    pass','if condition:\n    pass\nelse:\n    pass']],
+['Control',['wait(0.5, SECONDS)','while not condition:\n    pass','while condition:\n    pass','for repeat_count in range(5):\n    pass','if condition:\n    pass','if condition:\n    pass\nelse:\n    pass']],
 ['Variables',['counter = 0','counter += 1','message = "Hello"']],['Operators',['1 + 1','1 < 2','True and False','not True']]]]
 ];
 pythonPalette.replaceChildren();
@@ -3992,6 +3992,7 @@ window.addEventListener("beforeunload",saveAutosave);
 </script>
 </body>
 </html>
+
 
 
 

@@ -2582,7 +2582,21 @@ function nextPythonCodeLine(records,start){
   return null;
 }
 
-function parsePythonBlock(records,start,indent,errors){
+function describeIndentation(record,expected,reason){
+  const actual=record.indent;
+  const difference=actual-expected;
+  const adjustment=difference>0?"Remove "+difference+" leading space"+(difference===1?"":"s"):"Add "+(-difference)+" leading space"+(difference===-1?"":"s");
+  return "Line "+record.lineNumber+": "+reason+" Found "+actual+" leading spaces; expected "+expected+". "+adjustment+" at the start of this line.";
+}
+
+function parsePythonBlock(records,start,indent,errors,levels=[0]){
+  if(start===0){
+    for(const record of records){
+      if(isPythonSetupLine(record.trimmed))continue;
+      const leading=record.raw.match(/^[ \t]*/)[0];
+      if(leading.includes("\t") && leading.includes(" "))errors.push("Line "+record.lineNumber+": Indentation mixes tabs and spaces. Replace the leading whitespace with spaces (one editor indent is 4 spaces).");
+    }
+  }
   const nodes=[];
   let index=start;
 
@@ -2592,9 +2606,16 @@ function parsePythonBlock(records,start,indent,errors){
       index++;
       continue;
     }
-    if(record.indent<indent)break;
+    if(record.indent<indent){
+      if(!levels.includes(record.indent)){
+        const expected=levels.reduce((best,value)=>Math.abs(value-record.indent)<Math.abs(best-record.indent)?value:best,levels[0]);
+        errors.push(describeIndentation(record,expected,"Indentation does not match an enclosing block. Valid indentation levels here: "+levels.join(", ")+" spaces."));
+        index++;continue;
+      }
+      break;
+    }
     if(record.indent>indent){
-      errors.push("Line "+record.lineNumber+": Unexpected indentation. Use Ctrl+[ or Ctrl+] to adjust the line.");
+      errors.push(describeIndentation(record,indent,"Extra indentation: this line is not inside a new block."));
       index++;
       continue;
     }
@@ -2604,8 +2625,9 @@ function parsePythonBlock(records,start,indent,errors){
       let parent=nodes[nodes.length-1];
       while(parent?.elseBody?.[0]?.type==="if")parent=parent.elseBody[0];
       const next=nextPythonCodeLine(records,index+1);
-      if(!parent || parent.type!=="if" || parent.elseBody || !next || next.indent<=indent){errors.push("Line "+record.lineNumber+": Invalid else/elif branch.");index++;continue;}
-      const result=parsePythonBlock(records,index+1,next.indent,errors);
+      if(!parent || parent.type!=="if" || parent.elseBody){errors.push("Line "+record.lineNumber+": "+branch[1]+" must line up with its matching if, with no unrelated commands between the branches.");index++;continue;}
+      if(!next || next.indent<=indent){errors.push(next?describeIndentation(next,indent+4,"Missing indentation after "+branch[1]+" on line "+record.lineNumber+"."):"Line "+record.lineNumber+": Add an indented command or pass under "+branch[1]+".");index++;continue;}
+      const result=parsePythonBlock(records,index+1,next.indent,errors,[...levels,next.indent]);
       parent.elseBody=branch[1]==="else"?result.nodes:[{type:"if",condition:branch[2].trim(),body:result.nodes,lineNumber:record.lineNumber}];
       index=result.index;continue;
     }
@@ -2616,11 +2638,11 @@ function parsePythonBlock(records,start,indent,errors){
     if(match || whileMatch || ifMatch){
       const nextRecord=nextPythonCodeLine(records,index+1);
       if(!nextRecord || nextRecord.indent<=indent){
-        errors.push("Line "+record.lineNumber+": Add an indented command under this block.");
+        errors.push(nextRecord?describeIndentation(nextRecord,indent+4,"Missing indentation after line "+record.lineNumber+". Indent the block body (normally 4 more spaces than its heading)."):"Line "+record.lineNumber+": Missing block body. Add a command or pass on the next line, indented "+(indent+4)+" spaces.");
         index++;
         continue;
       }
-      const bodyResult=parsePythonBlock(records,index+1,nextRecord.indent,errors);
+      const bodyResult=parsePythonBlock(records,index+1,nextRecord.indent,errors,[...levels,nextRecord.indent]);
       if(match){
         nodes.push({type:"for",variable:match[1],rangeExpression:match[2],body:bodyResult.nodes,lineNumber:record.lineNumber});
       }
@@ -3936,6 +3958,7 @@ window.addEventListener("beforeunload",saveAutosave);
 </script>
 </body>
 </html>
+
 
 
 

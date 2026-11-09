@@ -3445,94 +3445,38 @@ function pythonSnapshotProgram(){
 
 function createProjectSnapshotCanvas(){
   const output=document.createElement("canvas");
-  output.width=1280;
-  const pythonProgram=activeMode==="python"?pythonSnapshotProgram():{lines:[],omittedCount:0};
-  const programAreaHeight=activeMode==="blocks"
-    ?Math.max(536,blockProgram.length*43+20)
-    :Math.max(536,pythonProgram.lines.length*17+36);
-  const workspacePanelHeight=programAreaHeight+62;
-  output.height=Math.max(720,workspacePanelHeight+122);
+  const pythonProgram=activeMode==="python"?pythonSnapshotProgram():{lines:[]};
+  const codeFont='20px Consolas,"Courier New",monospace';
+  const measure=output.getContext("2d");measure.font=codeFont;
+  const textWidth=Math.max(0,...pythonProgram.lines.map(line=>measure.measureText(line.text).width));
+  output.width=Math.max(1280,Math.ceil(textWidth)+96);
+  const codeTop=544;
+  const codeHeight=activeMode==="blocks"
+    ?Math.max(160,blockProgram.length*43+48)
+    :Math.max(160,pythonProgram.lines.length*28+48);
+  output.height=codeTop+codeHeight+32;
   const graphics=output.getContext("2d");
-
   graphics.fillStyle="#f4f6f8";
   graphics.fillRect(0,0,output.width,output.height);
-  graphics.fillStyle="#20242a";
-  graphics.font="bold 25px Arial,Helvetica,sans-serif";
-  graphics.fillText(projectName.value.trim() || "My Brain Screen",40,43);
-  graphics.fillStyle="#66717e";
-  graphics.font="13px Arial,Helvetica,sans-serif";
-  graphics.fillText("VEX V5 Screen Simulator • "+(activeMode==="python"?"Python":"Blocks"),40,65);
-
-  drawSnapshotPanel(graphics,40,82,590,workspacePanelHeight);
-  graphics.fillStyle="#20242a";
-  graphics.font="bold 15px Arial,Helvetica,sans-serif";
-  graphics.fillText(activeMode==="python"?"main.py":"main.blocks",58,112);
-  if(activeMode==="python" && pythonProgram.omittedCount){
-    graphics.fillStyle="#718096";
-    graphics.font="11px Arial,Helvetica,sans-serif";
-    graphics.textAlign="right";
-    graphics.fillText("Generated #region omitted",602,112);
-    graphics.textAlign="left";
-  }
+  const screen=createScreenExportCanvas();
+  graphics.drawImage(screen,(output.width-960)/2,32,960,480);
   graphics.fillStyle="#161b22";
-  roundedRectPath(graphics,55,126,560,programAreaHeight,8);
+  roundedRectPath(graphics,32,codeTop,output.width-64,codeHeight,8);
   graphics.fill();
-
+  graphics.textAlign="left";
   if(activeMode==="python"){
-    graphics.font='13px Consolas,"Courier New",monospace';
+    graphics.font=codeFont;
+    graphics.fillStyle="#e7edf4";
     pythonProgram.lines.forEach((line,index)=>{
-      const y=151+index*17;
-      graphics.fillStyle="#758191";
-      graphics.textAlign="right";
-      graphics.fillText(String(line.lineNumber),84,y);
-      graphics.fillStyle="#e7edf4";
-      graphics.textAlign="left";
-      graphics.fillText(clippedCanvasText(graphics,line.text,505),96,y);
+      graphics.fillText(line.text,48,codeTop+34+index*28);
     });
   }
   else if(blockProgram.length){
-    let blockY=140;
+    let blockY=codeTop+24;
     blockProgram.forEach(block=>{
-      blockY+=drawSnapshotBlock(graphics,block,74,blockY,520);
+      blockY+=drawSnapshotBlock(graphics,block,48,blockY,output.width-96);
     });
   }
-  else{
-    graphics.fillStyle="#aab4bf";
-    graphics.font="13px Arial,Helvetica,sans-serif";
-    graphics.fillText("No blocks added yet.",78,154);
-  }
-  graphics.textAlign="left";
-
-  drawSnapshotPanel(graphics,650,82,590,340,"#343b42","#1c2126",16);
-  graphics.fillStyle="#ffffff";
-  graphics.font="bold 13px Arial,Helvetica,sans-serif";
-  graphics.fillText("VEX V5 ROBOT BRAIN",674,110);
-  const screen=createScreenExportCanvas();
-  graphics.fillStyle="#080a0c";
-  roundedRectPath(graphics,690,122,510,270,10);
-  graphics.fill();
-  graphics.drawImage(screen,705,137,480,240);
-
-  drawSnapshotPanel(graphics,650,440,590,240);
-  graphics.fillStyle="#20242a";
-  graphics.font="bold 15px Arial,Helvetica,sans-serif";
-  graphics.fillText("Screen Information",670,470);
-  const gridLabel=practiceGrid==="DRAW30"?"Drawing 30 × 30":practiceGrid || "Off";
-  const details=[
-    ["Mode",activeMode==="python"?"Python":"Blocks"],
-    ["Grid",gridLabel],
-    ["Font",state.font],
-    ["Cursor","Row "+state.row+", Col "+state.col],
-    ["Pen",state.pen],
-    ["Fill",state.fill],
-    ["Pen Width",String(state.penWidth)],
-    ["Status",byId("runStatus").textContent]
-  ];
-  details.forEach((detail,index)=>{
-    const column=index%4;
-    const row=Math.floor(index/4);
-    drawSnapshotInfo(graphics,detail[0],detail[1],670+column*140,488+row*78,130);
-  });
   return output;
 }
 

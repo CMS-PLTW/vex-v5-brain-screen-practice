@@ -535,6 +535,24 @@ html[data-theme="dark"] #pythonWorkspace .filename-actions>button,html[data-them
 .commands-panel .code-category::-webkit-scrollbar-thumb{background:#7c91ac;border:2px solid #e2e8f0;border-radius:5px}
 .commands-panel .code-category::-webkit-scrollbar-track{background:#e2e8f0}
 html[data-theme="dark"] .commands-panel .code-category{scrollbar-color:#8097b6 #263142}
+
+/* Move the icon, keeping the toolbar stable. */
+.toolbar-icon::before{transition:transform .22s cubic-bezier(.2,.8,.2,1)}
+@media(hover:hover){
+ .topbar>button.toolbar-icon:hover:not(:disabled),.grid-control>button.toolbar-icon:hover:not(:disabled),.run-controls button.toolbar-icon:hover:not(:disabled){
+  transform:none;
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--button-ink) 25%,transparent),0 0 15px color-mix(in srgb,var(--button-ink) 30%,transparent);
+ }
+ .toolbar-icon:hover:not(:disabled)::before{transform:translateY(-2px) scale(1.16) rotate(-5deg)}
+ #pythonWorkspace .filename-actions>button:hover:not(:disabled),.code-library-toggle:hover:not(:disabled){
+  transform:none;box-shadow:0 0 0 2px #60a5fa33,0 0 12px #60a5fa40;
+ }
+ #pythonWorkspace .zoom-button:hover:not(:disabled){transform:none;box-shadow:inset 0 0 0 2px #60a5fa55}
+}
+.topbar>button.toolbar-icon:active:not(:disabled),.grid-control>button.toolbar-icon:active:not(:disabled),.run-controls button.toolbar-icon:active:not(:disabled),
+#pythonWorkspace .filename-actions>button:active:not(:disabled),.code-library-toggle:active:not(:disabled){transform:none;box-shadow:inset 0 2px 4px #0f172a40}
+.toolbar-icon:active:not(:disabled)::before{transform:scale(.92)}
+@media(prefers-reduced-motion:reduce){.toolbar-icon::before{transition:none!important;transform:none!important}}
 </style>
 </head>
 

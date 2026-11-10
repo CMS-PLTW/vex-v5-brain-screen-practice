@@ -411,6 +411,56 @@ html[data-theme="dark"] .large-screen :is(.grid-ruler-x span,.grid-ruler-y span)
 html[data-theme="dark"] :is(.sensor-controls,.testbed-heading){background:#263142;color:#e5eaf2;border-color:#465367}
 html[data-theme="dark"] .sensor-controls :is(label,p){color:#c5d2e3}
 html[data-theme="dark"] .topbar>button:disabled{background:#303b4c;color:#94a3b8;border-color:#465367}
+
+/* Compact icon toolbar. */
+.topbar{gap:5px;align-items:center}
+.topbar>button.toolbar-icon,.grid-control>button.toolbar-icon,.run-controls button.toolbar-icon{
+ position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+ width:58px;height:58px;min-width:58px;padding:5px 2px;border:1px solid #cbd5e1;border-radius:7px;
+ background:#fff!important;color:#334155!important;font:600 10px/12px Arial,sans-serif;
+ box-shadow:0 1px 2px #0f172a12;text-align:center;white-space:normal;
+}
+.toolbar-icon::before{content:"";display:block;flex:0 0 23px;width:23px;height:23px;background:currentColor;mask:var(--toolbar-icon) center/contain no-repeat;-webkit-mask:var(--toolbar-icon) center/contain no-repeat}
+.topbar #saveBtn,.topbar #openBtn,.topbar #snapshotBtn{color:#2563eb!important}
+.topbar #labRun{background:#edf9f1!important;color:#15803d!important;border-color:#9ccbac}
+.topbar #labStop{background:#fff0f0!important;color:#b91c1c!important;border-color:#e5aaaa}
+.topbar .toolbar-icon:focus-visible{outline:3px solid #60a5fa;outline-offset:2px}
+.topbar .toolbar-icon:disabled{opacity:.4}
+.run-controls{gap:5px;padding:4px;margin-left:auto}
+html[data-theme="dark"] .topbar .toolbar-icon{background:#263142!important;color:#e2e8f0!important;border-color:#526078}
+html[data-theme="dark"] .topbar #labRun{background:#173a2b!important;color:#86efac!important}
+html[data-theme="dark"] .topbar #labStop{background:#49252b!important;color:#fca5a5!important}
+@media(max-width:760px){.topbar>button.toolbar-icon,.grid-control>button.toolbar-icon,.run-controls button.toolbar-icon{width:52px;height:52px;min-width:52px;font-size:9px}.toolbar-icon::before{width:21px;height:21px;flex-basis:21px}.run-controls{margin-left:0}}
+.toolbar-icon[data-icon="undo"]{--toolbar-icon:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.8%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M9%205%203%2011l6%206M3%2011h11a7%207%200%200%201%207%207%22%2F%3E%3C%2Fsvg%3E")}
+.toolbar-icon[data-icon="redo"]{--toolbar-icon:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.8%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m15%205%206%206-6%206m6-6H10a7%207%200%200%200-7%207%22%2F%3E%3C%2Fsvg%3E")}
+.toolbar-icon[data-icon="new"]{--toolbar-icon:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.8%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M14%202H5v20h14V7zM14%202v6h5M8%2015h8m-4-4v8%22%2F%3E%3C%2Fsvg%3E")}
+.toolbar-icon[data-icon="save"]{--toolbar-icon:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.8%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M3%203h15l3%203v15H3zM7%203v7h10V3M7%2021v-7h10v7%22%2F%3E%3C%2Fsvg%3E")}
+.toolbar-icon[data-icon="open"]{--toolbar-icon:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.8%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M2%2020V5h7l3%203h10M2%2020l4-10h17l-4%2010z%22%2F%3E%3C%2Fsvg%3E")}
+.toolbar-icon[data-icon="snapshot"]{--toolbar-icon:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.8%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M3%207h4l2-3h6l2%203h4v14H3z%22%2F%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2214%22%20r%3D%224%22%2F%3E%3C%2Fsvg%3E")}
+.toolbar-icon[data-icon="grid"]{--toolbar-icon:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.8%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223%22%20y%3D%223%22%20width%3D%2218%22%20height%3D%2218%22%20rx%3D%221%22%2F%3E%3Cpath%20d%3D%22M9%203v18m6-18v18M3%209h18M3%2015h18%22%2F%3E%3C%2Fsvg%3E")}
+.toolbar-icon[data-icon="moon"]{--toolbar-icon:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.8%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M20.5%2014a9%209%200%200%201-10.5-11A9%209%200%201%200%2020.5%2014Z%22%2F%3E%3C%2Fsvg%3E")}
+.toolbar-icon[data-icon="run"]{--toolbar-icon:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.8%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m7%203%2015%209-15%209z%22%20fill%3D%22black%22%20stroke%3D%22none%22%2F%3E%3C%2Fsvg%3E")}
+.toolbar-icon[data-icon="stop"]{--toolbar-icon:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.8%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%225%22%20y%3D%225%22%20width%3D%2214%22%20height%3D%2214%22%20rx%3D%222%22%20fill%3D%22black%22%20stroke%3D%22none%22%2F%3E%3C%2Fsvg%3E")}
+.toolbar-icon[data-icon="reset"]{--toolbar-icon:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.8%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M20%207V2m0%205h-5M20%207a9%209%200%201%200%201%209%22%2F%3E%3C%2Fsvg%3E")}
+
+
+/* Keep editor controls readable when the coding pane narrows. */
+#pythonWorkspace .filename-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:8px 10px;min-height:46px}
+#pythonWorkspace .filename-bar>span{flex:0 0 auto;font:600 12px/1.2 Arial,sans-serif}
+#pythonWorkspace .filename-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:6px;min-width:0;flex:1}
+#pythonWorkspace .filename-actions>button{height:30px;min-height:30px;flex:0 0 auto;padding:0 9px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#334155;white-space:nowrap;font:600 11px/1 Arial,sans-serif;box-sizing:border-box}
+#pythonWorkspace .filename-actions>button:hover:not(:disabled){background:#edf3fd;border-color:#7fa5dd}
+#pythonWorkspace .filename-actions>button:focus-visible{outline:2px solid #60a5fa;outline-offset:2px}
+#pythonWorkspace .filename-actions>button:disabled{opacity:.4}
+#pythonWorkspace .filename-actions>button[aria-pressed="true"]{color:#1d4ed8;background:#e0ecff;border-color:#7da8eb}
+#pythonWorkspace .zoom-controls{height:30px;flex:0 0 auto;box-sizing:border-box;border-radius:6px}
+#pythonWorkspace .zoom-button{height:28px;min-width:29px;padding:0 5px;font:600 12px/1 Arial,sans-serif}
+#pythonWorkspace .zoom-value{min-width:36px;font:500 10px/1 Arial,sans-serif}
+#pythonStatus{font:500 11px/1 Arial,sans-serif;white-space:nowrap;color:#64748b;padding:5px}
+html[data-theme="dark"] #pythonWorkspace .filename-actions>button{background:#303e53;color:#e5eaf2;border-color:#52647c}
+html[data-theme="dark"] #pythonWorkspace .filename-actions>button[aria-pressed="true"]{color:#bfdbfe;background:#234a7a;border-color:#6ca5f0}
+html[data-theme="dark"] #pythonStatus{color:#b9c8dc}
+
 </style>
 </head>
 
@@ -564,9 +614,9 @@ html[data-theme="dark"] .topbar>button:disabled{background:#303b4c;color:#94a3b8
             <span>main.py</span>
             <div class="filename-actions">
             <button id="regionFoldBtn" class="region-fold-btn" hidden>Collapse setup</button>
-              <button id="stepModeToggle" type="button" aria-pressed="false" title="Pause before each Python line">Step mode: Off</button>
+              <button id="stepModeToggle" type="button" aria-pressed="false" title="Pause before each Python line">Step: Off</button>
               <button id="stepNext" type="button" disabled title="Execute the highlighted line">Step ▶</button>
-              <button id="traceToggle" type="button" aria-pressed="false" title="Follow every executed Python line in order at a slower demonstration speed. Step mode advances manually.">Highlight running code: Off</button>
+              <button id="traceToggle" type="button" aria-pressed="false" title="Follow every executed Python line in order at a slower demonstration speed. Step mode advances manually.">Highlight: Off</button>
               <div id="editorZoomControls" class="zoom-controls" aria-label="Editor text zoom">
                 <button id="zoomOutBtn" class="zoom-button" type="button" aria-label="Zoom out coding text">A−</button>
                 <span id="zoomValue" class="zoom-value" aria-live="polite">100%</span>
@@ -683,7 +733,7 @@ stepNext.addEventListener("click",()=>{if(stepResume)releaseStep();});
 stepModeToggle.addEventListener("click",()=>{
  steppingEnabled=!steppingEnabled;
  stepModeToggle.setAttribute("aria-pressed",String(steppingEnabled));
- stepModeToggle.textContent="Step mode: "+(steppingEnabled?"On":"Off");
+ stepModeToggle.textContent="Step: "+(steppingEnabled?"On":"Off");
  if(steppingEnabled){stopLab();runImmediately();}
  else{releaseStep();renderExecutionHighlight();}
 });
@@ -720,7 +770,7 @@ async function tracePythonLine(node,context){
 }
 traceToggle.addEventListener("click",()=>{
  tracingEnabled=!tracingEnabled;traceToggle.setAttribute("aria-pressed",String(tracingEnabled));
- traceToggle.textContent="Highlight running code: "+(tracingEnabled?"On":"Off");renderExecutionHighlight();
+ traceToggle.textContent="Highlight: "+(tracingEnabled?"On":"Off");renderExecutionHighlight();
 });
 const projectName=byId("projectName");
 const fileInput=byId("projectFileInput");
@@ -3946,7 +3996,7 @@ const themeToggle=document.getElementById('themeToggle');
 document.getElementById('gridBtn').closest('.grid-control').after(themeToggle);
 function applySimulatorTheme(dark){
  document.documentElement.dataset.theme=dark?'dark':'light';
- themeToggle.setAttribute('aria-pressed',String(dark));themeToggle.textContent='Dark mode: '+(dark?'On':'Off');
+ themeToggle.setAttribute('aria-pressed',String(dark));themeToggle.textContent='Dark: '+(dark?'On':'Off');
 }
 applySimulatorTheme(document.documentElement.dataset.theme==='dark');
 themeToggle.addEventListener('click',()=>{
@@ -4021,6 +4071,38 @@ formatCodeButton.addEventListener("click",()=>{
     ?"Formatted "+result.changes+" line(s). Review indentation to confirm the intended blocks. Undo restores the original."
     :"Indentation is already consistent. No changes needed.";
 });
+
+
+const toolbarIcons=[
+ ['undoBtn','undo','Undo','Undo last edit'],['redoBtn','redo','Redo','Redo last edit'],
+ ['newBtn','new','New','New project'],['saveBtn','save','Save','Save .v5python project'],
+ ['openBtn','open','Open','Open .v5python project'],['snapshotBtn','snapshot','Snapshot','Download project snapshot'],
+ ['gridBtn','grid',null,'Choose screen grid'],['themeToggle','moon',null,'Toggle dark mode'],
+ ['labRun','run','Run','Run program'],['labStop','stop','Stop','Stop program'],
+ ['labReset','reset','Reset','Reset sensors and motors']
+];
+for(const [id,icon,label,title] of toolbarIcons){
+ const button=byId(id);button.classList.add('toolbar-icon');button.dataset.icon=icon;
+ if(label)button.textContent=label;button.title=title;button.setAttribute('aria-label',title);
+}
+function closeOtherMenus(except){
+ if(except!==gridBtn){gridPopup.style.display='none';gridBtn.setAttribute('aria-expanded','false');}
+ if(except!==codeLibraryToggle)closeCodeLibrary();
+ closeEditorContext();
+}
+document.addEventListener('click',event=>{
+ const target=event.target.closest('button');
+ if(target===gridBtn||target===codeLibraryToggle)closeOtherMenus(target);
+ const summary=event.target.closest('summary');
+ if(!summary)return;
+ const detail=summary.parentElement;
+ if(detail.open)return;
+ if(detail.matches('.code-category')||codeLibraryContent.contains(detail)){
+   closeOtherMenus(codeLibraryContent.contains(detail)?codeLibraryToggle:null);
+   for(const other of detail.parentElement.children)if(other!==detail&&other.tagName==='DETAILS')other.open=false;
+ }
+},true);
+document.addEventListener('contextmenu',event=>{if(event.target===editor)closeOtherMenus(null);},true);
 
 window.addEventListener("beforeunload",saveAutosave);
 </script>

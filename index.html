@@ -3954,6 +3954,74 @@ themeToggle.addEventListener('click',()=>{
  try{localStorage.setItem('vex-v5-screen-simulator.theme',dark?'dark':'light');}catch{}
 });
 
+function formatPythonIndentation(source){
+  const lines=source.split("\n"),region=generatedRegionRange(source);
+  const levels=[{raw:0,depth:0,kind:"root"}];
+  let pending=null,triple="",brackets=0,continued=false,changes=0;
+  const output=lines.map((line,index)=>{
+    if(region && index>=region.start && index<=region.end)return line;
+    const trimmed=line.trim(),wasLiteral=!!triple,wasContinuation=brackets>0||continued;
+    let quote="",escaped=false;
+    for(let p=0;p<line.length;p++){
+      const c=line[p],three=line.slice(p,p+3);
+      if(triple){if(three===triple){triple="";p+=2;}continue;}
+      if(quote){if(escaped)escaped=false;else if(c==="\\")escaped=true;else if(c===quote)quote="";continue;}
+      if(c==="#")break;
+      if(three==='"""'||three==="'''"){triple=three;p+=2;continue;}
+      if(c==='"'||c==="'"){quote=c;continue;}
+      if("([{".includes(c))brackets++;
+      else if(")]}".includes(c))brackets=Math.max(0,brackets-1);
+    }
+    continued=!triple&&line.trimEnd().endsWith("\\");
+    if(wasLiteral||wasContinuation)return line;
+    if(!trimmed)return line;
+    const raw=pythonIndentWidth(line),code=stripPythonInlineComment(trimmed).trim();
+    if(trimmed.startsWith("#"))return line.replace(/^\t+/,tabs=>" ".repeat(tabs.length*4));
+    const beginsBody=!!pending;
+    if(pending){
+      levels.push({raw:raw>pending.raw?raw:pending.raw+4,depth:pending.depth+1,kind:pending.kind});
+      pending=null;
+    }
+    const branch=code.match(/^(elif|else|except|finally)\b/);
+    if(branch){
+      const wanted=branch[1]==="elif"?["if","elif"]:branch[1]==="except"||branch[1]==="finally"?["try","except"]:["if","elif","for","while","try","except"];
+      let match=-1;
+      for(let n=levels.length-1;n>0;n--)if(wanted.includes(levels[n].kind)){match=n;break;}
+      if(match>0)levels.splice(match);
+    }else if(!beginsBody){
+      while(levels.length>1){
+        const current=levels.at(-1),parent=levels.at(-2);
+        if(raw>=current.raw || Math.abs(raw-current.raw)<Math.abs(raw-parent.raw))break;
+        levels.pop();
+      }
+    }
+    const current=levels.at(-1);
+    const result=" ".repeat(current.depth*4)+line.trimStart();
+    if(result!==line)changes++;
+    const heading=code.match(/^(?:async\s+)?(if|elif|else|for|while|def|class|try|except|finally|with)\b.*:\s*$/);
+    if(heading)pending={raw,depth:current.depth,kind:heading[1]};
+    return result;
+  });
+  return {code:output.join("\n"),changes};
+}
+const formatCodeButton=document.createElement("button");
+formatCodeButton.id="formatCodeBtn";formatCodeButton.type="button";
+formatCodeButton.textContent="Format code";
+formatCodeButton.title="Fix indentation to four spaces per level. Review the result; Undo restores the original.";
+byId("regionFoldBtn").before(formatCodeButton);
+formatCodeButton.addEventListener("click",()=>{
+  stopLab();
+  const old=editor.value,selection=editor.selectionStart;
+  const result=formatPythonIndentation(old);
+  editor.value=result.code;
+  recordPythonChange(old);previousEditorValue=editor.value;
+  updateLineNumbers();hideCodeCheck();clearErrorHighlights();saveAutosave();
+  editor.focus();editor.setSelectionRange(Math.min(selection,editor.value.length),Math.min(selection,editor.value.length));
+  byId("workspaceMessage").textContent=result.changes
+    ?"Formatted "+result.changes+" line(s). Review indentation to confirm the intended blocks. Undo restores the original."
+    :"Indentation is already consistent. No changes needed.";
+});
+
 window.addEventListener("beforeunload",saveAutosave);
 </script>
 </body>

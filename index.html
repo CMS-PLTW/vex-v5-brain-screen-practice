@@ -461,6 +461,48 @@ html[data-theme="dark"] #pythonWorkspace .filename-actions>button{background:#30
 html[data-theme="dark"] #pythonWorkspace .filename-actions>button[aria-pressed="true"]{color:#bfdbfe;background:#234a7a;border-color:#6ca5f0}
 html[data-theme="dark"] #pythonStatus{color:#b9c8dc}
 
+
+/* Muted button colors with restrained hover and press motion. */
+.topbar>button.toolbar-icon,.grid-control>button.toolbar-icon,.run-controls button.toolbar-icon{
+ --button-bg:#e6ebf1;--button-hover:#cbd5e1;--button-ink:#334155;
+ background:var(--button-bg)!important;color:var(--button-ink)!important;
+ border-color:color-mix(in srgb,var(--button-ink) 24%,transparent);
+ transition:background-color .18s ease,border-color .18s ease,box-shadow .18s ease,transform .18s ease;
+}
+.topbar #newBtn{--button-bg:#f1e4d8;--button-hover:#dfc3a8;--button-ink:#754b2c}
+.topbar #saveBtn{--button-bg:#dfebe4;--button-hover:#bbd4c5;--button-ink:#315b45}
+.topbar #openBtn{--button-bg:#e0e9f3;--button-hover:#bccfe5;--button-ink:#355d88}
+.topbar #snapshotBtn{--button-bg:#eae3f2;--button-hover:#d0bfe1;--button-ink:#664583}
+.topbar #gridBtn{--button-bg:#dfecef;--button-hover:#b9d6dd;--button-ink:#35616c}
+.topbar #themeToggle{--button-bg:#e7e5ef;--button-hover:#cbc6dd;--button-ink:#55506c}
+.topbar #labRun{--button-bg:#dfece2;--button-hover:#afd0b8;--button-ink:#27613c;background:var(--button-bg)!important;color:var(--button-ink)!important}
+.topbar #labStop{--button-bg:#f0e0e0;--button-hover:#ddb6b6;--button-ink:#8b3c3c;background:var(--button-bg)!important;color:var(--button-ink)!important}
+#pythonWorkspace .filename-actions>button,.code-library-toggle{
+ background:#e5ebf3;color:#334155;border-color:#b8c6d8;
+ transition:background-color .18s ease,border-color .18s ease,box-shadow .18s ease,transform .18s ease;
+}
+#pythonWorkspace .zoom-button{background:#e5ebf3;transition:background-color .18s ease,transform .18s ease}
+html[data-theme="dark"] .topbar .toolbar-icon{
+ --button-bg:#344155;--button-hover:#263246;--button-ink:#e2e8f0;
+ background:var(--button-bg)!important;color:var(--button-ink)!important;
+}
+html[data-theme="dark"] .topbar #labRun{--button-bg:#2b4c3c;--button-hover:#1c392a;--button-ink:#b4ddc1}
+html[data-theme="dark"] .topbar #labStop{--button-bg:#56383d;--button-hover:#40282e;--button-ink:#e9bfc4}
+html[data-theme="dark"] #pythonWorkspace .filename-actions>button,html[data-theme="dark"] .code-library-toggle,html[data-theme="dark"] #pythonWorkspace .zoom-button{background:#3a4960;color:#e2e8f0;border-color:#62738d}
+@media(hover:hover){
+ .topbar>button.toolbar-icon:hover:not(:disabled),.grid-control>button.toolbar-icon:hover:not(:disabled),.run-controls button.toolbar-icon:hover:not(:disabled){
+  background:var(--button-hover)!important;filter:none;transform:translateY(-2px);box-shadow:0 4px 8px #0f172a24;
+ }
+ #pythonWorkspace .filename-actions>button:hover:not(:disabled),.code-library-toggle:hover:not(:disabled){background:#c7d4e5;transform:translateY(-1px);box-shadow:0 3px 6px #0f172a20}
+ #pythonWorkspace .zoom-button:hover:not(:disabled){background:#c7d4e5}
+ html[data-theme="dark"] #pythonWorkspace .filename-actions>button:hover:not(:disabled),html[data-theme="dark"] .code-library-toggle:hover:not(:disabled),html[data-theme="dark"] #pythonWorkspace .zoom-button:hover:not(:disabled){background:#28364b}
+}
+.topbar>button.toolbar-icon:active:not(:disabled),.grid-control>button.toolbar-icon:active:not(:disabled),.run-controls button.toolbar-icon:active:not(:disabled),
+#pythonWorkspace .filename-actions>button:active:not(:disabled),.code-library-toggle:active:not(:disabled){transform:translateY(1px) scale(.96);box-shadow:none}
+@media(prefers-reduced-motion:reduce){
+ .topbar .toolbar-icon,#pythonWorkspace .filename-actions>button,.code-library-toggle,#pythonWorkspace .zoom-button{transition:none!important;transform:none!important}
+}
+
 </style>
 </head>
 

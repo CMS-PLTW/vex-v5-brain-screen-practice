@@ -583,6 +583,15 @@ html[data-theme="dark"] .command-options-button{background:#344860;color:#dce9fa
 html[data-theme="dark"] .command-options-button:hover{background:#496587}
 html[data-theme="dark"] #cheatBox.command-options-popup{background:#1c2431;color:#e5eaf2;border-color:#647d9e}
 .option-command-title{display:block;padding:6px 0 9px;font:11px/1.5 Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
+
+#lineNumbers{padding-left:0}
+#lineNumbers .line-number{position:relative;display:block}
+.code-fold-toggle{position:absolute;left:0;top:0;width:18px;height:var(--editor-line-height);padding:0;border:0;background:transparent;color:#526d91;font:14px/1 Arial,sans-serif;cursor:pointer}
+.code-fold-toggle:hover{background:#dbeafe;color:#1d4ed8}
+.code-fold-toggle:focus-visible{outline:2px solid #60a5fa}
+html[data-theme="dark"] .code-fold-toggle{color:#a6c4eb}
+html[data-theme="dark"] .code-fold-toggle:hover{background:#344860;color:#fff}
+#regionFoldBtn{display:none!important}
 </style>
 </head>
 
@@ -844,6 +853,8 @@ buffer.height=240;
 const bctx=buffer.getContext("2d");
 
 const editor=byId("editor");
+const pythonBlockFolds=new Map();
+let pythonFoldSequence=0;
 const syntaxHighlight=byId("syntaxHighlight");
 const lineNumbers=byId("lineNumbers");
 const executionHighlight=byId("executionHighlight");
@@ -1683,11 +1694,71 @@ function generatedRegionRange(source){
   return{lines,start,end:start+1+relativeEnd};
 }
 
+function expandedEditorLines(){
+ const result=[];
+ function append(raw,visibleLine){
+  const folded=pythonBlockFolds.get(raw.trim());
+  if(folded){for(const child of folded)append(child,Math.max(1,visibleLine-1));}
+  else result.push({raw,lineNumber:visibleLine});
+ }
+ editor.value.split("\n").forEach((raw,index)=>append(raw,index+1));
+ return result;
+}
+function expandBlockFoldText(text){
+ return text.split("\n").flatMap(line=>{
+  const folded=pythonBlockFolds.get(line.trim());
+  return folded?expandBlockFoldText(folded.join("\n")).split("\n"):[line];
+ }).join("\n");
+}
+function pythonFoldRanges(){
+ const lines=editor.value.split("\n"),ranges=new Map();
+ let triple="";
+ for(let index=0;index<lines.length;index++){
+  const trimmed=lines[index].trim();
+  if(triple){if(trimmed.includes(triple))triple="";continue;}
+  const quote=trimmed.slice(0,3);
+  if(quote==='"""'||quote==="'''"){if(trimmed.indexOf(quote,3)<0)triple=quote;continue;}
+  const code=stripPythonInlineComment(trimmed);
+  if(!/^(?:async\s+)?(?:if|elif|else|while|for|def|class|try|except|finally|with)\b.*:\s*$/.test(code))continue;
+  const indent=pythonIndentWidth(lines[index]);
+  let end=index+1,hasBody=false;
+  for(;end<lines.length;end++){
+   const next=lines[end].trim();
+   if(!next)continue;
+   if(pythonBlockFolds.has(next)){hasBody=true;continue;}
+   if(next.startsWith("#"))continue;
+   if(pythonIndentWidth(lines[end])<=indent)break;
+   hasBody=true;
+  }
+  while(end>index+1&&!lines[end-1].trim())end--;
+  if(hasBody&&end>index+1)ranges.set(index,{end});
+ }
+ return ranges;
+}
+function togglePythonBlock(index){
+ const lines=editor.value.split("\n");
+ const marker=lines[index+1]?.trim();
+ if(pythonBlockFolds.has(marker)){
+  lines.splice(index+1,1,...pythonBlockFolds.get(marker));
+ }else{
+  const range=pythonFoldRanges().get(index);if(!range)return;
+  const body=lines.slice(index+1,range.end);
+  const count=expandBlockFoldText(body.join("\n")).split("\n").length;
+  const token="# … "+count+" lines folded [fold:"+(++pythonFoldSequence)+"]";
+  pythonBlockFolds.set(token,body);
+  lines.splice(index+1,body.length," ".repeat(pythonIndentWidth(lines[index])+4)+token);
+ }
+ const scroll=editor.scrollTop;
+ editor.value=lines.join("\n");previousEditorValue=editor.value;
+ updateLineNumbers();editor.scrollTop=scroll;syncEditorScroll();
+}
+
 function getFullPythonCode(){
-  if(!pythonRegionFold)return editor.value;
-  const lines=editor.value.split("\n");
+  const expanded=expandBlockFoldText(editor.value);
+  if(!pythonRegionFold)return expanded;
+  const lines=expanded.split("\n");
   const markerIndex=lines.findIndex(line=>line===pythonRegionFold.marker);
-  if(markerIndex<0)return editor.value;
+  if(markerIndex<0)return expanded;
   return[
     ...lines.slice(0,markerIndex),
     ...pythonRegionFold.regionLines,
@@ -1711,17 +1782,7 @@ function collapseGeneratedRegion(){
   return true;
 }
 
-function updateRegionFoldButton(){
-  const button=byId("regionFoldBtn");
-  if(activeMode!=="python"){
-    button.hidden=true;
-    return;
-  }
-  const range=generatedRegionRange(editor.value);
-  button.hidden=!pythonRegionFold && !range;
-  button.textContent=pythonRegionFold?"Expand setup":"Collapse setup";
-  button.setAttribute("aria-expanded",String(!pythonRegionFold));
-}
+function updateRegionFoldButton(){byId("regionFoldBtn").hidden=true;}
 
 function toggleGeneratedRegion(){
   if(pythonRegionFold){
@@ -1739,10 +1800,20 @@ function toggleGeneratedRegion(){
 function updateLineNumbers(){
   const count=editor.value.split("\n").length;
   const fragment=document.createDocumentFragment();
+  const foldRanges=pythonFoldRanges(),visibleLines=editor.value.split("\n");
   for(let index=1;index<=count;index++){
     const line=document.createElement("span");
     line.className="line-number"+(pythonErrorLines.includes(index)?" has-error":"");
     line.textContent=index;
+    const setup=pythonRegionFold&&visibleLines[index-1]===pythonRegionFold.marker;
+    if(foldRanges.has(index-1)||setup){
+      const control=document.createElement('button');control.type='button';control.className='code-fold-toggle';
+      const folded=setup||pythonBlockFolds.has(visibleLines[index]?.trim());
+      control.textContent=folded?'▸':'▾';control.setAttribute('aria-expanded',String(!folded));
+      control.setAttribute('aria-label',(folded?'Expand':'Fold')+' code at line '+index);
+      control.addEventListener('click',()=>setup?toggleGeneratedRegion():togglePythonBlock(index-1));
+      line.prepend(control);
+    }
     fragment.appendChild(line);
   }
   lineNumbers.replaceChildren(fragment);
@@ -1755,7 +1826,7 @@ if(document.fonts && document.fonts.ready){
   document.fonts.ready.then(syncEditorGeometry);
 }
 new ResizeObserver(syncEditorGeometry).observe(byId("pythonWorkspace"));
-byId("regionFoldBtn").addEventListener("click",toggleGeneratedRegion);
+
 projectName.addEventListener("input",scheduleAutosave);
 
 /* HISTORY */
@@ -2720,7 +2791,7 @@ function pythonProgramRecords(){
   const records=[];
   let inGeneratedConfiguration=false;
   let standaloneTripleQuote="";
-  editor.value.split("\n").forEach((raw,index)=>{
+  expandedEditorLines().forEach(({raw,lineNumber})=>{
     const originalTrimmed=raw.trim();
     if(standaloneTripleQuote){
       if(originalTrimmed.includes(standaloneTripleQuote))standaloneTripleQuote="";
@@ -2741,7 +2812,7 @@ function pythonProgramRecords(){
     }
     if(!inGeneratedConfiguration){
       const trimmed=stripPythonInlineComment(raw).trim();
-      records.push({raw,trimmed,indent:pythonIndentWidth(raw),lineNumber:index+1});
+      records.push({raw,trimmed,indent:pythonIndentWidth(raw),lineNumber});
     }
   });
   return records;
@@ -4185,7 +4256,7 @@ byId("regionFoldBtn").before(formatCodeButton);
 formatCodeButton.addEventListener("click",()=>{
   stopLab();
   const old=editor.value,selection=editor.selectionStart;
-  const result=formatPythonIndentation(old);
+  const result=formatPythonIndentation(expandBlockFoldText(old));
   editor.value=result.code;
   recordPythonChange(old);previousEditorValue=editor.value;
   updateLineNumbers();hideCodeCheck();clearErrorHighlights();saveAutosave();

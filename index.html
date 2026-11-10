@@ -1805,10 +1805,12 @@ function updateLineNumbers(){
     const line=document.createElement("span");
     line.className="line-number"+(pythonErrorLines.includes(index)?" has-error":"");
     line.textContent=index;
-    const setup=pythonRegionFold&&visibleLines[index-1]===pythonRegionFold.marker;
+    const setupCollapsed=pythonRegionFold&&visibleLines[index-1]===pythonRegionFold.marker;
+    const setupExpanded=!pythonRegionFold&&/^\s*#region\s+VEXcode Generated Robot Configuration\s*$/i.test(visibleLines[index-1]);
+    const setup=setupCollapsed||setupExpanded;
     if(foldRanges.has(index-1)||setup){
       const control=document.createElement('button');control.type='button';control.className='code-fold-toggle';
-      const folded=setup||pythonBlockFolds.has(visibleLines[index]?.trim());
+      const folded=!!setupCollapsed||pythonBlockFolds.has(visibleLines[index]?.trim());
       control.textContent=folded?'▸':'▾';control.setAttribute('aria-expanded',String(!folded));
       control.setAttribute('aria-label',(folded?'Expand':'Fold')+' code at line '+index);
       control.addEventListener('click',()=>setup?toggleGeneratedRegion():togglePythonBlock(index-1));

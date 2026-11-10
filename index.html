@@ -525,6 +525,16 @@ html[data-theme="dark"] #pythonWorkspace .filename-actions>button,html[data-them
 }
 
 @media(hover:hover){.topbar :is(#undoBtn,#redoBtn,#newBtn,#saveBtn,#openBtn,#snapshotBtn,#gridBtn,#themeToggle,#labRun,#labStop,#labReset).toolbar-icon:hover:not(:disabled){color:#fff!important}}
+
+/* Long snippets stay intact and scroll inside the open drawer. */
+.commands-panel{min-width:0;overflow-x:hidden}
+.commands-panel .code-category{max-width:100%;overflow-x:auto;overflow-y:hidden;scrollbar-width:auto;scrollbar-color:#7c91ac #e2e8f0}
+.commands-panel .code-category>.command{width:max-content;min-width:100%;max-width:none;white-space:pre;overflow:visible;text-overflow:clip}
+.commands-panel .code-category>summary,.commands-panel .drawer-subtitle{position:sticky;left:0;box-sizing:border-box;white-space:normal;overflow-wrap:break-word}
+.commands-panel .code-category::-webkit-scrollbar{height:10px}
+.commands-panel .code-category::-webkit-scrollbar-thumb{background:#7c91ac;border:2px solid #e2e8f0;border-radius:5px}
+.commands-panel .code-category::-webkit-scrollbar-track{background:#e2e8f0}
+html[data-theme="dark"] .commands-panel .code-category{scrollbar-color:#8097b6 #263142}
 </style>
 </head>
 

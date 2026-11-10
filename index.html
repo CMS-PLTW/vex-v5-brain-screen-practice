@@ -592,6 +592,21 @@ html[data-theme="dark"] #cheatBox.command-options-popup{background:#1c2431;color
 html[data-theme="dark"] .code-fold-toggle{color:#a6c4eb}
 html[data-theme="dark"] .code-fold-toggle:hover{background:#344860;color:#fff}
 #regionFoldBtn{display:none!important}
+
+/* Editor action colors. */
+#pythonWorkspace .filename-actions>#formatCodeBtn{background:#f3dce8;color:#783552;border-color:#c795ae}
+#pythonWorkspace .filename-actions>#stepModeToggle{background:#f4dfc9;color:#7c451d;border-color:#cba179}
+#pythonWorkspace .filename-actions>#stepNext{background:#f4edbe;color:#675619;border-color:#c6b76c}
+#pythonWorkspace .filename-actions>#stepModeToggle[aria-pressed="true"]{background:#dc9d62;color:#48260c;border-color:#a66a34}
+html[data-theme="dark"] #pythonWorkspace .filename-actions>#formatCodeBtn{background:#684356;color:#ffe1ef;border-color:#a9738e}
+html[data-theme="dark"] #pythonWorkspace .filename-actions>#stepModeToggle{background:#704e32;color:#ffe6cf;border-color:#b1875b}
+html[data-theme="dark"] #pythonWorkspace .filename-actions>#stepNext{background:#665d32;color:#fff3bd;border-color:#a99b5a}
+html[data-theme="dark"] #pythonWorkspace .filename-actions>#stepModeToggle[aria-pressed="true"]{background:#965e2f;color:#fff0e0;border-color:#d39764}
+@media(hover:hover){
+ #pythonWorkspace .filename-actions>#formatCodeBtn:hover:not(:disabled){background:#ad547f;color:white;border-color:#914267}
+ #pythonWorkspace .filename-actions>#stepModeToggle:hover:not(:disabled){background:#ac642d;color:white;border-color:#8b4c1e}
+ #pythonWorkspace .filename-actions>#stepNext:hover:not(:disabled){background:#a88d23;color:white;border-color:#8c7318}
+}
 </style>
 </head>
 

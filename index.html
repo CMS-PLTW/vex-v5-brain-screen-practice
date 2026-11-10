@@ -553,6 +553,21 @@ html[data-theme="dark"] .commands-panel .code-category{scrollbar-color:#8097b6 #
 #pythonWorkspace .filename-actions>button:active:not(:disabled),.code-library-toggle:active:not(:disabled){transform:none;box-shadow:inset 0 2px 4px #0f172a40}
 .toolbar-icon:active:not(:disabled)::before{transform:scale(.92)}
 @media(prefers-reduced-motion:reduce){.toolbar-icon::before{transition:none!important;transform:none!important}}
+
+.code-option-reference{margin:12px 8px 6px;padding:10px;border:1px solid #b8cadf;border-radius:7px;background:#eaf1fa;color:#253b55;font:12px/1.4 Arial,sans-serif}
+.code-option-reference p{margin:6px 0 8px}
+.code-option-reference button{display:block;width:100%;margin:4px 0;padding:7px 6px;border:1px solid #b8cadf;border-radius:5px;background:#fff;color:#334e70;font:600 12px Arial,sans-serif;text-align:left}
+.code-option-reference button:hover{background:#cfdeef}
+.commands-panel .cheat-box{margin:6px 8px 12px;border-radius:7px;overflow:hidden}
+.commands-panel .cheat-grid,.commands-panel .font-list{grid-template-columns:minmax(0,1fr);gap:7px}
+.commands-panel .cheat-item,.commands-panel .font-item{white-space:normal;overflow-wrap:anywhere}
+.option-reference-row{padding:6px 0;border-bottom:1px solid #cbd5e1}
+.option-reference-row code{color:#92511c;font:600 11px/1.4 Consolas,monospace;overflow-wrap:anywhere}
+.option-reference-row p{margin:3px 0;font:11px/1.45 Arial,sans-serif}
+html[data-theme="dark"] .code-option-reference{background:#26374d;color:#dbeafe;border-color:#526b8a}
+html[data-theme="dark"] .code-option-reference button{background:#344860;color:#e2e8f0;border-color:#627895}
+html[data-theme="dark"] .code-option-reference button:hover{background:#425d7c}
+html[data-theme="dark"] .option-reference-row code{color:#fdba74}
 </style>
 </head>
 
@@ -3867,7 +3882,8 @@ document.querySelectorAll(paletteSelector).forEach(button=>{
  button.title='Drag into the workspace. Python inserts at your current cursor.';
 });
 document.addEventListener('click',event=>{
- if(event.target.closest(paletteSelector)){event.preventDefault();event.stopImmediatePropagation();}
+ const optionCommand=event.target.closest(paletteSelector);
+ if(optionCommand){if(optionCommand.dataset.code)showCommandOptions(optionCommand.dataset.code);event.preventDefault();event.stopImmediatePropagation();}
 },true);
 document.addEventListener('dragstart',event=>{
  const button=event.target.closest(paletteSelector);if(!button)return;
@@ -3887,6 +3903,7 @@ editor.addEventListener('drop',event=>{
  editor.setSelectionRange(start,end);
  const code=button.dataset.code||button.textContent;
  insertCommand(code.replace(/\bmotor\./g,byId('motorTarget').value+'.'));
+ showCommandOptions(code);
  paletteDrag=null;
 });
 blockProgramElement.addEventListener('dragover',event=>{
@@ -4195,6 +4212,49 @@ document.addEventListener('click',event=>{
  }
 },true);
 document.addEventListener('contextmenu',event=>{if(event.target===editor)closeOtherMenus(null);},true);
+
+
+function showCommandOptions(code){
+ if(/set_pen_color/.test(code)){showColorChooser('pen');return;}
+ if(/set_fill_color/.test(code)){showColorChooser('fill');return;}
+ if(/set_font/.test(code)){showFontChooser();return;}
+ const body=byId('cheatBody');body.replaceChildren();
+ byId('cheatTitle').textContent='Code options';
+ const rows=/set_cursor/.test(code)?[
+  ['row, column','Start at 1. Available rows and columns depend on the selected font.'],
+  ...Object.entries(fonts).map(([name,font])=>['FontType.'+name,font.rows+' rows × '+font.cols+' columns'])
+ ]:/draw_/.test(code)?[
+  ['x: 0–479','Horizontal position: left to right.'],['y: 0–239','Vertical position: top to bottom.'],
+  ['width, height, radius','Sizes are measured in pixels.'],['Pen and fill','Choose colors using the buttons below.']
+ ]:/wait|timeout/.test(code)?[
+  ['SECONDS','Seconds, including decimals: 0.1, 0.5, 1.25.'],['MSEC','Milliseconds: 1000 MSEC = 1 second.']
+ ]:/motor\./.test(code)?[
+  ['FORWARD / REVERSE','Choose the motor direction.'],['PERCENT','Motor speed: 0–100%.'],
+  ['RPM','Motor speed in revolutions per minute.'],['DEGREES / TURNS','360 degrees = 1 full turn.'],
+  ['BRAKE / COAST / HOLD','Choose how the motor stops.']
+ ]:[
+  ['Numbers','Change numeric values to suit your project.'],['"Text"','Replace text inside quotation marks.'],
+  ['True / False','Use capital T and F.'],['Comparisons','<  <=  ==  !=  >=  >'],
+  ['Variables','Use names such as counter consistently throughout the code.']
+ ];
+ for(const [name,description] of rows){
+  const item=document.createElement('div');item.className='option-reference-row';
+  const label=document.createElement('code');label.textContent=name;
+  const detail=document.createElement('p');detail.textContent=description;
+  item.append(label,detail);body.append(item);
+ }
+ byId('cheatBox').style.display='block';
+}
+const codeOptionReference=document.createElement('section');
+codeOptionReference.className='code-option-reference';
+const optionHeading=document.createElement('strong');optionHeading.textContent='Code options';
+const optionHelp=document.createElement('p');optionHelp.textContent='Click a command to see values you can change. Drag it to insert code.';
+codeOptionReference.append(optionHeading,optionHelp);
+for(const [label,open] of [['Pen colors',()=>showColorChooser('pen')],['Fill colors',()=>showColorChooser('fill')],['Fonts',showFontChooser],['Values & units',()=>showCommandOptions('motor.spin')]]){
+ const button=document.createElement('button');button.type='button';button.textContent=label;button.onclick=open;codeOptionReference.append(button);
+}
+byId('cheatBox').before(codeOptionReference);
+showCommandOptions('');
 
 window.addEventListener("beforeunload",saveAutosave);
 </script>

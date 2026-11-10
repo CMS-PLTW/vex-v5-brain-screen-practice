@@ -568,6 +568,20 @@ html[data-theme="dark"] .code-option-reference{background:#26374d;color:#dbeafe;
 html[data-theme="dark"] .code-option-reference button{background:#344860;color:#e2e8f0;border-color:#627895}
 html[data-theme="dark"] .code-option-reference button:hover{background:#425d7c}
 html[data-theme="dark"] .option-reference-row code{color:#fdba74}
+
+.commands-panel .command-option-row{display:grid;grid-template-columns:minmax(0,1fr) 49px;align-items:stretch;width:100%;min-width:0;border-bottom:1px solid #e2e8f0}
+.commands-panel .command-option-row>.command{width:100%;min-width:0;max-width:100%;overflow-x:auto;white-space:pre;border-bottom:0;scrollbar-width:thin}
+.command-options-button{align-self:center;margin:3px 4px 3px 0;padding:6px 3px;border:1px solid #b4c6df;border-radius:5px;background:#e6edf7;color:#345578;font:600 10px/1.2 Arial,sans-serif;cursor:pointer}
+.command-options-button:hover{background:#c3d3e9}
+.command-options-button[aria-expanded="true"]{background:#3d628b;color:white}
+.command-options-button:focus-visible{outline:2px solid #60a5fa;outline-offset:1px}
+#cheatBox.command-options-popup{position:fixed;z-index:10010;width:min(320px,calc(100vw - 16px));max-height:min(520px,calc(100vh - 16px));overflow-y:auto;box-sizing:border-box;margin:0;border:1px solid #9db4d0;border-radius:8px;background:#fff;box-shadow:0 8px 28px #0f172a40}
+.command-options-popup .cheat-head{position:sticky;top:0;z-index:1;padding:9px 10px}
+.command-options-popup .cheat-body{padding:10px}
+.command-options-popup .cheat-grid,.command-options-popup .font-list{grid-template-columns:minmax(0,1fr);gap:8px}
+html[data-theme="dark"] .command-options-button{background:#344860;color:#dce9fa;border-color:#647d9e}
+html[data-theme="dark"] .command-options-button:hover{background:#496587}
+html[data-theme="dark"] #cheatBox.command-options-popup{background:#1c2431;color:#e5eaf2;border-color:#647d9e}
 </style>
 </head>
 
@@ -3883,7 +3897,7 @@ document.querySelectorAll(paletteSelector).forEach(button=>{
 });
 document.addEventListener('click',event=>{
  const optionCommand=event.target.closest(paletteSelector);
- if(optionCommand){if(optionCommand.dataset.code)showCommandOptions(optionCommand.dataset.code);event.preventDefault();event.stopImmediatePropagation();}
+ if(optionCommand){event.preventDefault();event.stopImmediatePropagation();}
 },true);
 document.addEventListener('dragstart',event=>{
  const button=event.target.closest(paletteSelector);if(!button)return;
@@ -3903,7 +3917,6 @@ editor.addEventListener('drop',event=>{
  editor.setSelectionRange(start,end);
  const code=button.dataset.code||button.textContent;
  insertCommand(code.replace(/\bmotor\./g,byId('motorTarget').value+'.'));
- showCommandOptions(code);
  paletteDrag=null;
 });
 blockProgramElement.addEventListener('dragover',event=>{
@@ -4225,7 +4238,7 @@ function showCommandOptions(code){
   ...Object.entries(fonts).map(([name,font])=>['FontType.'+name,font.rows+' rows × '+font.cols+' columns'])
  ]:/draw_/.test(code)?[
   ['x: 0–479','Horizontal position: left to right.'],['y: 0–239','Vertical position: top to bottom.'],
-  ['width, height, radius','Sizes are measured in pixels.'],['Pen and fill','Choose colors using the buttons below.']
+  ['width, height, radius','Sizes are measured in pixels.'],['Pen and fill','Use Options beside set_pen_color or set_fill_color to see available colors.']
  ]:/wait|timeout/.test(code)?[
   ['SECONDS','Seconds, including decimals: 0.1, 0.5, 1.25.'],['MSEC','Milliseconds: 1000 MSEC = 1 second.']
  ]:/motor\./.test(code)?[
@@ -4245,16 +4258,50 @@ function showCommandOptions(code){
  }
  byId('cheatBox').style.display='block';
 }
-const codeOptionReference=document.createElement('section');
-codeOptionReference.className='code-option-reference';
-const optionHeading=document.createElement('strong');optionHeading.textContent='Code options';
-const optionHelp=document.createElement('p');optionHelp.textContent='Click a command to see values you can change. Drag it to insert code.';
-codeOptionReference.append(optionHeading,optionHelp);
-for(const [label,open] of [['Pen colors',()=>showColorChooser('pen')],['Fill colors',()=>showColorChooser('fill')],['Fonts',showFontChooser],['Values & units',()=>showCommandOptions('motor.spin')]]){
- const button=document.createElement('button');button.type='button';button.textContent=label;button.onclick=open;codeOptionReference.append(button);
+
+const commandOptionsPopup=byId('cheatBox');
+commandOptionsPopup.classList.add('command-options-popup');
+commandOptionsPopup.setAttribute('role','dialog');
+commandOptionsPopup.setAttribute('aria-label','Command options');
+document.body.append(commandOptionsPopup);
+let activeOptionsButton=null;
+function closeCommandOptions(){
+ commandOptionsPopup.style.display='none';
+ if(activeOptionsButton)activeOptionsButton.setAttribute('aria-expanded','false');
+ activeOptionsButton=null;
 }
-byId('cheatBox').before(codeOptionReference);
-showCommandOptions('');
+document.querySelectorAll('.commands-panel .command[data-code]').forEach(command=>{
+ const row=document.createElement('div');row.className='command-option-row';
+ command.before(row);row.append(command);
+ const options=document.createElement('button');options.type='button';
+ options.className='command-options-button';options.textContent='Options';
+ options.setAttribute('aria-label','Options for '+command.dataset.code);
+ options.setAttribute('aria-expanded','false');options.setAttribute('aria-controls','cheatBox');
+ options.title='Show values you can change';
+ row.append(options);
+ options.addEventListener('click',()=>{
+  const alreadyOpen=activeOptionsButton===options&&commandOptionsPopup.style.display!=='none';
+  closeCommandOptions();if(alreadyOpen)return;
+  closeOtherMenus(null);
+  showCommandOptions(command.dataset.code);
+  activeOptionsButton=options;options.setAttribute('aria-expanded','true');
+  const rect=options.getBoundingClientRect();
+  const width=commandOptionsPopup.offsetWidth,height=commandOptionsPopup.offsetHeight;
+  commandOptionsPopup.style.left=Math.max(8,Math.min(rect.right+8,innerWidth-width-8))+'px';
+  commandOptionsPopup.style.top=Math.max(8,Math.min(rect.top,innerHeight-height-8))+'px';
+ });
+});
+byId('cheatClose').addEventListener('click',()=>{
+ const button=activeOptionsButton;closeCommandOptions();button?.focus();
+});
+document.addEventListener('pointerdown',event=>{
+ if(!commandOptionsPopup.contains(event.target)&&!event.target.closest('.command-options-button'))closeCommandOptions();
+});
+document.addEventListener('keydown',event=>{
+ if(event.key==='Escape'&&activeOptionsButton){const button=activeOptionsButton;closeCommandOptions();button.focus();}
+});
+window.addEventListener('resize',closeCommandOptions);
+document.querySelector('.commands-panel').addEventListener('scroll',closeCommandOptions);
 
 window.addEventListener("beforeunload",saveAutosave);
 </script>

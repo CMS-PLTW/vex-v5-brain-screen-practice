@@ -582,6 +582,7 @@ html[data-theme="dark"] .option-reference-row code{color:#fdba74}
 html[data-theme="dark"] .command-options-button{background:#344860;color:#dce9fa;border-color:#647d9e}
 html[data-theme="dark"] .command-options-button:hover{background:#496587}
 html[data-theme="dark"] #cheatBox.command-options-popup{background:#1c2431;color:#e5eaf2;border-color:#647d9e}
+.option-command-title{display:block;padding:6px 0 9px;font:11px/1.5 Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
 </style>
 </head>
 
@@ -4227,30 +4228,86 @@ document.addEventListener('click',event=>{
 document.addEventListener('contextmenu',event=>{if(event.target===editor)closeOtherMenus(null);},true);
 
 
+function commandOptionRows(code){
+ const direction=['FORWARD / REVERSE','The direction argument chooses which way the motor turns.'];
+ const rotation=['DEGREES / TURNS','Choose angle units: 360 degrees = 1 turn.'];
+ const time=[['duration','A nonnegative number; decimals such as 0.1 and 1.25 are allowed.'],['SECONDS / MSEC','Choose seconds or milliseconds. 1000 MSEC = 1 second.']];
+ const x=['x: 0–479','Horizontal screen coordinate, measured from the left.'];
+ const y=['y: 0–239','Vertical screen coordinate, measured from the top.'];
+ const match=code.match(/^(?:left_motor|right_motor|motor)\.(\w+)\((.*)\)$/);
+ if(match){
+  const method=match[1],args=match[2];
+  const options={
+   spin:[direction,...(args.includes('VOLT')?[['voltage','A motor voltage value, up to 12 volts.'],['VOLT','Use voltage units for this command.']]:[['Optional speed','Use spin(FORWARD, 50, PERCENT), or omit speed to use set_velocity().'],['PERCENT / RPM','Speed units: percentage or revolutions per minute.']])],
+   spin_for:[direction,['amount','How far to turn, such as 90 degrees or 1 turn.'],rotation],
+   spin_to_position:[['position','The target absolute position relative to the motor zero.'],rotation],
+   stop:[['No arguments required','Stops the motor using its configured stopping behavior.']],
+   set_position:[['position','Change the reported motor position without turning the motor.'],rotation],
+   set_velocity:[['velocity','Set motor speed, such as 50 PERCENT or 100 RPM.'],['PERCENT / RPM','Choose percentage (0–100) or revolutions per minute.']],
+   set_stopping:[['BRAKE','Stop using braking.'],['COAST','Allow the motor to coast.'],['HOLD','Hold the motor position.']],
+   set_max_torque:[['amount','Maximum torque percentage, from 0 to 100.'],['PERCENT','Percentage units.']],
+   set_timeout:time,
+   is_done:[['No arguments','Returns True when the motor movement is complete; otherwise False.']],
+   is_spinning:[['No arguments','Returns True while the motor is spinning; otherwise False.']],
+   position:[rotation],
+   velocity:[['PERCENT / RPM','Choose the units for the returned motor speed.']],
+   current:[['CurrentUnits.AMP','Reference only: motor electrical measurements are not simulated.']],
+   power:[['PowerUnits.WATT','Reference only: motor electrical measurements are not simulated.']],
+   torque:[['TorqueUnits.NM','Reference only: motor torque measurements are not simulated.']],
+   efficiency:[['PERCENT','Reference only: motor efficiency is not simulated.']],
+   temperature:[['PERCENT','Reference only: motor temperature is not simulated.']]
+  };
+  return options[method]||[['No listed options','This command has no editable options listed.']];
+ }
+ const screen=code.match(/^brain\.screen\.(\w+)\(/);
+ if(screen){
+  const font=fonts[state.font];
+  const options={
+   print:[['value','Text in quotation marks, a number, or a variable.'],['Example','brain.screen.print("Hello") or brain.screen.print(counter)']],
+   set_cursor:[['row: 1–'+font.rows,'Vertical text row for the current '+state.font+' font.'],['column: 1–'+font.cols,'Horizontal text column for the current '+state.font+' font.']],
+   next_row:[['No arguments','Moves the cursor to column 1 of the next text row.']],
+   clear_row:[['Optional row: 1–'+font.rows,'Leave empty to clear the current row, or supply a row number.']],
+   row:[['No arguments','Returns the current text cursor row.']],
+   column:[['No arguments','Returns the current text cursor column.']],
+   clear_screen:[['No arguments required','Clears the screen while keeping the current text cursor position.']],
+   set_pen_width:[['width','A positive whole number of pixels for the pen width.']],
+   draw_pixel:[x,y],
+   draw_line:[['x1, y1','Starting point in screen pixels. x: 0–479; y: 0–239.'],['x2, y2','Ending point in screen pixels. x: 0–479; y: 0–239.']],
+   draw_rectangle:[x,y,['width','Rectangle width in pixels.'],['height','Rectangle height in pixels.']],
+   draw_circle:[x,y,['radius','Distance from the center to the edge, in pixels.']],
+   pressing:[['No arguments','Returns True while the Brain screen is pressed.']],
+   x_position:[['No arguments','Returns the screen-touch x coordinate.']],
+   y_position:[['No arguments','Returns the screen-touch y coordinate.']]
+  };
+  return options[screen[1]]||[['No listed options','This command has no editable options listed.']];
+ }
+ if(/^wait\s*\(/.test(code))return time;
+ if(/^brain\.timer\.time\(/.test(code))return [['SECONDS / MSEC','Choose the units for the elapsed timer reading.']];
+ if(/^(bumper_a|limit_switch_b)\.pressing\(/.test(code))return [['No arguments','Returns True while this switch is pressed; otherwise False.']];
+ if(/^(light_c|line_tracker_d)\.(brightness|reflectivity|value)\(/.test(code))return [['PERCENT','Returns this sensor reading as a percentage (0–100).']];
+ if(/^potentiometer(?:_e)?\.angle\(/.test(code))return [['PERCENT / DEGREES','Choose percentage or angle units for the potentiometer reading.']];
+ if(/^(ultrasonic_g|sonar_g|range_finder_g)\.distance\(/.test(code))return [['MM / CM / INCHES','Choose millimeters, centimeters, or inches for the distance reading.']];
+ if(/\.found_object\(/.test(code))return [['No arguments','Returns True when the ultrasonic sensor detects an object.']];
+ if(/^led(?:_f)?\.set\(/.test(code))return [['True','Turn the LED on.'],['False','Turn the LED off.']];
+ if(/^print\(/.test(code))return [['value','Text in quotation marks, a number, or a variable to show in the console.']];
+ if(/^(while|if)\b/.test(code))return [['condition','Replace condition with a sensor check, comparison, or True/False expression.'],['Comparisons','<  <=  ==  !=  >=  >'],['Indented body','Replace pass with the commands to run inside this block.']];
+ if(/^for\b/.test(code))return [['range(5)','Change 5 to the number of repetitions.'],['repeat_count','The loop variable; use the same name wherever you refer to it.'],['Indented body','Replace pass with the commands to repeat.']];
+ if(/^message\s*=/.test(code))return [['message','Your variable name; use it consistently.'],['"Hello"','Replace the text inside quotation marks.']];
+ if(/^counter\s*(=|\+=)/.test(code))return [['counter','Your variable name; use it consistently.'],[code.includes('+=')?'amount to add':'starting value','Replace the number with the value you want.']];
+ if(/^[\d.]+\s*\+/.test(code))return [['numbers','Change the two numbers. + adds them.']];
+ if(/^[\d.]+\s*</.test(code))return [['values','Change the values being compared. < means less than.']];
+ if(code==='True and False')return [['left and right conditions','Replace either side with True, False, or a condition. Both must be True.']];
+ if(code==='not True')return [['condition','Replace True with a condition. not reverses True and False.']];
+ return [['No editable arguments','This command has no editable argument choices listed.']];
+}
 function showCommandOptions(code){
- if(/set_pen_color/.test(code)){showColorChooser('pen');return;}
- if(/set_fill_color/.test(code)){showColorChooser('fill');return;}
- if(/set_font/.test(code)){showFontChooser();return;}
+ if(/^brain\.screen\.set_pen_color\(/.test(code)){showColorChooser('pen');return;}
+ if(/^brain\.screen\.set_fill_color\(/.test(code)){showColorChooser('fill');return;}
+ if(/^brain\.screen\.set_font\(/.test(code)){showFontChooser();return;}
  const body=byId('cheatBody');body.replaceChildren();
  byId('cheatTitle').textContent='Code options';
- const rows=/set_cursor/.test(code)?[
-  ['row, column','Start at 1. Available rows and columns depend on the selected font.'],
-  ...Object.entries(fonts).map(([name,font])=>['FontType.'+name,font.rows+' rows × '+font.cols+' columns'])
- ]:/draw_/.test(code)?[
-  ['x: 0–479','Horizontal position: left to right.'],['y: 0–239','Vertical position: top to bottom.'],
-  ['width, height, radius','Sizes are measured in pixels.'],['Pen and fill','Use Options beside set_pen_color or set_fill_color to see available colors.']
- ]:/wait|timeout/.test(code)?[
-  ['SECONDS','Seconds, including decimals: 0.1, 0.5, 1.25.'],['MSEC','Milliseconds: 1000 MSEC = 1 second.']
- ]:/motor\./.test(code)?[
-  ['FORWARD / REVERSE','Choose the motor direction.'],['PERCENT','Motor speed: 0–100%.'],
-  ['RPM','Motor speed in revolutions per minute.'],['DEGREES / TURNS','360 degrees = 1 full turn.'],
-  ['BRAKE / COAST / HOLD','Choose how the motor stops.']
- ]:[
-  ['Numbers','Change numeric values to suit your project.'],['"Text"','Replace text inside quotation marks.'],
-  ['True / False','Use capital T and F.'],['Comparisons','<  <=  ==  !=  >=  >'],
-  ['Variables','Use names such as counter consistently throughout the code.']
- ];
- for(const [name,description] of rows){
+ const command=document.createElement('code');command.className='option-command-title';command.textContent=code.split('\n')[0];body.append(command);
+ for(const [name,description] of commandOptionRows(code)){
   const item=document.createElement('div');item.className='option-reference-row';
   const label=document.createElement('code');label.textContent=name;
   const detail=document.createElement('p');detail.textContent=description;

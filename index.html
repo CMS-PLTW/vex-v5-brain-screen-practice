@@ -503,6 +503,27 @@ html[data-theme="dark"] #pythonWorkspace .filename-actions>button,html[data-them
  .topbar .toolbar-icon,#pythonWorkspace .filename-actions>button,.code-library-toggle,#pythonWorkspace .zoom-button{transition:none!important;transform:none!important}
 }
 
+
+/* Stronger hover feedback without changing button size or layout. */
+@media(hover:hover){
+ .topbar>button.toolbar-icon:hover:not(:disabled),.grid-control>button.toolbar-icon:hover:not(:disabled),.run-controls button.toolbar-icon:hover:not(:disabled){
+  background:color-mix(in srgb,var(--button-hover) 68%,var(--button-ink))!important;
+  color:#fff!important;filter:none;transform:translateY(-5px) scale(1.09);
+  box-shadow:0 8px 14px #0f172a40;position:relative;z-index:2;
+ }
+ #pythonWorkspace .filename-actions>button:hover:not(:disabled),.code-library-toggle:hover:not(:disabled){
+  background:#526d91;color:#fff;border-color:#425b7c;transform:translateY(-3px) scale(1.04);box-shadow:0 6px 10px #0f172a35;position:relative;z-index:2;
+ }
+ #pythonWorkspace .zoom-button:hover:not(:disabled){background:#526d91;color:#fff;transform:scale(1.1)}
+ html[data-theme="dark"] .topbar .toolbar-icon:hover:not(:disabled){background:#162233!important;color:#fff!important}
+ html[data-theme="dark"] #pythonWorkspace .filename-actions>button:hover:not(:disabled),html[data-theme="dark"] .code-library-toggle:hover:not(:disabled),html[data-theme="dark"] #pythonWorkspace .zoom-button:hover:not(:disabled){background:#162233;color:#fff}
+}
+.topbar>button.toolbar-icon:active:not(:disabled),.grid-control>button.toolbar-icon:active:not(:disabled),.run-controls button.toolbar-icon:active:not(:disabled),
+#pythonWorkspace .filename-actions>button:active:not(:disabled),.code-library-toggle:active:not(:disabled){transform:translateY(1px) scale(.92);box-shadow:none}
+@media(prefers-reduced-motion:reduce){
+ .topbar .toolbar-icon,#pythonWorkspace .filename-actions>button,.code-library-toggle,#pythonWorkspace .zoom-button{transition:none!important;transform:none!important}
+}
+
 </style>
 </head>
 

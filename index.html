@@ -607,6 +607,13 @@ html[data-theme="dark"] #pythonWorkspace .filename-actions>#stepModeToggle[aria-
  #pythonWorkspace .filename-actions>#stepModeToggle:hover:not(:disabled){background:#ac642d;color:white;border-color:#8b4c1e}
  #pythonWorkspace .filename-actions>#stepNext:hover:not(:disabled){background:#a88d23;color:white;border-color:#8c7318}
 }
+
+/* Fit the working area to the actual toolbar height and browser viewport. */
+@media(min-width:901px){
+ :root{--workspace-height:var(--fitted-editor-height,calc(100dvh - 230px))}
+ .commands-panel{max-height:var(--fitted-menu-height,calc(100dvh - 100px))}
+ .testbed{width:min(100%,calc(var(--fitted-simulator-height,600px)*780/470));min-height:0;margin-inline:auto}
+}
 </style>
 </head>
 
@@ -4447,6 +4454,35 @@ document.addEventListener('keydown',event=>{
 });
 window.addEventListener('resize',closeCommandOptions);
 document.querySelector('.commands-panel').addEventListener('scroll',closeCommandOptions);
+
+
+let viewportFitFrame=null;
+function scheduleViewportFit(){
+ if(viewportFitFrame!==null)return;
+ viewportFitFrame=requestAnimationFrame(()=>{
+  viewportFitFrame=null;
+  if(matchMedia('(max-width:900px)').matches)return;
+  const viewport=window.visualViewport?.height||window.innerHeight;
+  const root=document.documentElement;
+  const shell=byId(activeMode==='python'?'pythonWorkspace':'blocksWorkspace').querySelector(activeMode==='python'?'.editor-shell':'.blocks-shell');
+  if(shell){
+   const box=shell.getBoundingClientRect(),workspace=shell.closest('.workspace').getBoundingClientRect();
+   const footer=Math.max(0,workspace.bottom-box.bottom);
+   const height=Math.max(160,Math.floor(viewport-box.top-footer-14));
+   root.style.setProperty('--fitted-editor-height',height+'px');
+  }
+  const menu=document.querySelector('.commands-panel');
+  root.style.setProperty('--fitted-menu-height',Math.max(180,Math.floor(viewport-menu.getBoundingClientRect().top-14))+'px');
+  const boardTop=board.getBoundingClientRect().top;
+  const room=Math.max(220,Math.floor(viewport-boardTop-18));
+  root.style.setProperty('--fitted-simulator-height',room+'px');
+ });
+}
+new ResizeObserver(scheduleViewportFit).observe(document.querySelector('.topbar'));
+new ResizeObserver(scheduleViewportFit).observe(document.querySelector('.workspace'));
+window.addEventListener('resize',scheduleViewportFit);
+window.visualViewport?.addEventListener('resize',scheduleViewportFit);
+scheduleViewportFit();
 
 window.addEventListener("beforeunload",saveAutosave);
 </script>

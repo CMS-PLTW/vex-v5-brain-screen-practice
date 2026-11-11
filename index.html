@@ -1483,6 +1483,7 @@ function applyProjectData(data={},options={}){
         ?data.code
         :starterCode();
   collapseGeneratedRegion();
+  writeDeviceConfigurationCode();
   vexProjectMetadata=isVexPython
     ?{
       robotConfig:data.robotConfig,
@@ -2062,6 +2063,8 @@ editor.addEventListener("keydown",event=>{
 });
 
 function insertCommand(command){
+  const aliases={};for(const device of testbedDeviceCatalog)aliases[device.id]=configuredDeviceName(device);
+  command=rewriteDeviceIdentifiers(command,aliases);
   const oldValue=editor.value;
   const start=editor.selectionStart;
   const end=editor.selectionEnd;
@@ -3614,7 +3617,7 @@ byId("exampleSelect").addEventListener("change",event=>{
  }
  const selected=demoExampleLookup[event.target.value];if(!selected)return;
  stopLab();switchMode('python',{run:false});const old=editor.value;
- pythonRegionFold=null;editor.value=demoExampleCode(selected);collapseGeneratedRegion();
+ pythonRegionFold=null;editor.value=demoExampleCode(selected);collapseGeneratedRegion();writeDeviceConfigurationCode();
  recordPythonChange(old);previousEditorValue=editor.value;updateLineNumbers();
  practiceGrid='';updateGridSelection();updateInfo();
  event.target.value='';startDelayedRun();
@@ -4494,7 +4497,7 @@ function showCommandOptions(code){
  const body=byId('cheatBody');body.replaceChildren();
  byId('cheatTitle').textContent='Code options';
  const command=document.createElement('code');command.className='option-command-title';command.textContent=code.split('\n')[0];body.append(command);
- for(const [name,description] of commandOptionRows(code)){
+ for(const [name,description] of commandOptionRows(runtimeDeviceCode(code))){
   const item=document.createElement('div');item.className='option-reference-row';
   const label=document.createElement('code');label.textContent=name;
   const detail=document.createElement('p');detail.textContent=description;
@@ -4610,15 +4613,52 @@ function refreshDeviceConnections(){
   element.dataset.port=devicePortLabel(d);
  }
  const motorTarget=byId('motorTarget');if(motorTarget)for(const option of motorTarget.options){const d=testbedDeviceCatalog.find(d=>d.id===option.value);if(d)option.textContent=d.title+' · '+devicePortLabel(d);}
+ const aliases=Object.fromEntries(testbedDeviceCatalog.map(d=>[d.id,configuredDeviceName(d)]));
+ for(const command of document.querySelectorAll('.commands-panel .command[data-code]')){
+  if(!command.dataset.deviceTemplate)command.dataset.deviceTemplate=command.dataset.code;
+  command.dataset.code=rewriteDeviceIdentifiers(command.dataset.deviceTemplate,aliases);
+  command.innerHTML=(command.dataset.code.startsWith('while not condition:')?'<span class="command-caption">Wait until</span>':'')+highlightPython(command.dataset.code);
+  const option=command.parentElement.querySelector('.command-options-button');
+  if(option)option.setAttribute('aria-label','Options for '+command.dataset.code);
+ }
  const note=document.querySelector('.sensor-controls p');if(note)note.textContent='Hold switches or adjust sensors to interact. Use Devices to change the port connections.';
 }
-function configurationDeclarations(){
- return testbedDeviceCatalog.filter(d=>deviceConfiguration[d.id]!==null).map(d=>d.id+' = '+d.constructor+'('+(d.bus==='smart'?'Ports.PORT'+deviceConfiguration[d.id]:'brain.three_wire_port.'+deviceConfiguration[d.id].toLowerCase())+')').join('\n');
+function configuredDeviceName(device,configuration=deviceConfiguration){
+ const port=configuration[device.id];if(port===null)return device.id;
+ if(device.kind==='motor')return 'motor_'+port;
+ return device.id.replace(/_[a-h]$/,'')+'_'+String(port).toLowerCase();
 }
-function writeDeviceConfigurationCode(){
+function rewriteDeviceIdentifiers(source,replacements){
+ let result='',quote='',triple=false;
+ for(let i=0;i<source.length;){
+  const c=source[i];
+  if(quote){
+   const end=triple?quote.repeat(3):quote;
+   if(source.slice(i,i+end.length)===end){result+=end;i+=end.length;quote='';triple=false;continue;}
+   if(c==='\\'&&i+1<source.length){result+=source.slice(i,i+2);i+=2;continue;}
+   result+=c;i++;continue;
+  }
+  if(c==='#'){const end=source.indexOf('\n',i);if(end<0){result+=source.slice(i);break;}result+=source.slice(i,end+1);i=end+1;continue;}
+  if(c==='"'||c==="'"){quote=c;triple=source.slice(i,i+3)===c.repeat(3);const len=triple?3:1;result+=source.slice(i,i+len);i+=len;continue;}
+  const token=source.slice(i).match(/^[A-Za-z_]\w*/);
+  if(token){result+=Object.prototype.hasOwnProperty.call(replacements,token[0])?replacements[token[0]]:token[0];i+=token[0].length;continue;}
+  result+=c;i++;
+ }
+ return result;
+}
+function configurationDeclarations(){
+ return testbedDeviceCatalog.filter(d=>deviceConfiguration[d.id]!==null).map(d=>configuredDeviceName(d)+' = '+d.constructor+'('+(d.bus==='smart'?'Ports.PORT'+deviceConfiguration[d.id]:'brain.three_wire_port.'+deviceConfiguration[d.id].toLowerCase())+')').join('\n');
+}
+function writeDeviceConfigurationCode(previousConfiguration=deviceConfiguration){
  let source=getFullPythonCode();
- const names=testbedDeviceCatalog.map(d=>d.id).join('|');
- source=source.replace(new RegExp('^('+names+')\\s*=\\s*(?:Motor|Bumper|Limit|Light|Line|Potentiometer|Led|DigitalOut|Sonar)\\([^\\n]*\\)\\s*$','gm'),'');
+ const candidates=new Set();const replacements={};
+ for(const d of testbedDeviceCatalog){
+  const oldName=configuredDeviceName(d,previousConfiguration),newName=configuredDeviceName(d);
+  candidates.add(d.id);candidates.add(oldName);candidates.add(newName);
+  replacements[d.id]=newName;replacements[oldName]=newName;
+ }
+ source=source.replace(new RegExp('^('+[...candidates].join('|')+')[ \\t]*=[ \\t]*(?:Motor|Bumper|Limit|Light|Line|Potentiometer|Led|DigitalOut|Sonar)\\([^\\n]*\\)[ \\t]*(?:\\r?\\n|$)','gm'),'');
+ source=rewriteDeviceIdentifiers(source,replacements);
  const declarations=configurationDeclarations();
  const region=generatedRegionRange(source);
  if(region){
@@ -4632,16 +4672,25 @@ function writeDeviceConfigurationCode(){
 }
 function setDeviceConnection(id,port){
  const error=validateDevicePort(id,port);if(error)return error;
- stopLab();deviceConfiguration[id]=port;refreshDeviceConnections();writeDeviceConfigurationCode();saveAutosave();return '';
+ const previous={...deviceConfiguration};
+ stopLab();deviceConfiguration[id]=port;refreshDeviceConnections();writeDeviceConfigurationCode(previous);saveAutosave();return '';
+}
+function setAllDeviceConnections(configuration){
+ const previous={...deviceConfiguration};stopLab();deviceConfiguration=configuration;
+ refreshDeviceConnections();writeDeviceConfigurationCode(previous);saveAutosave();renderDevicesList();
+}
+function runtimeDeviceCode(source){
+ const aliases={};for(const d of testbedDeviceCatalog)aliases[configuredDeviceName(d)]=d.id;
+ return rewriteDeviceIdentifiers(source,aliases);
 }
 function ensureDeviceConnected(code){
  const clean=stripPythonInlineComment(code);
  for(const d of testbedDeviceCatalog)if(deviceConfiguration[d.id]===null&&new RegExp('\\b'+d.id+'\\s*\\.').test(clean))throw Error(d.id+' is disconnected. Open Devices and assign a port.');
 }
 const deviceValue=evaluatePythonValue;
-evaluatePythonValue=function(expression,variables){ensureDeviceConnected(expression);return deviceValue(expression,variables);};
+evaluatePythonValue=function(expression,variables){const code=runtimeDeviceCode(expression);ensureDeviceConnected(code);return deviceValue(code,variables);};
 const deviceStatement=executePythonStatement;
-executePythonStatement=async function(node,context){ensureDeviceConnected(node.text);return deviceStatement(node,context);};
+executePythonStatement=async function(node,context){const code=runtimeDeviceCode(node.text);ensureDeviceConnected(code);return deviceStatement({...node,text:code},context);};
 function deviceIllustration(kind){
  const shape=kind==='motor'?'<rect x="21" y="7" width="32" height="50" rx="5"/><path d="M25 18h24M25 25h24M25 32h24M37 57v9M15 14h6M15 48h6"/>':kind==='sonar'?'<rect x="10" y="22" width="54" height="30" rx="6"/><circle cx="25" cy="37" r="10"/><circle cx="50" cy="37" r="10"/>':kind==='led'?'<path d="M22 46V30a15 15 0 0 1 30 0v16zM19 46h36M29 48v15M45 48v15"/>':kind==='limit'?'<rect x="20" y="36" width="35" height="23" rx="3"/><path d="m27 36 23-23M50 13h10"/>':kind==='bumper'?'<path d="M16 48V32a21 21 0 0 1 42 0v16zM11 48h52v9H11z"/>':kind==='pot'?'<rect x="18" y="18" width="38" height="38" rx="8"/><circle cx="37" cy="37" r="12"/><path d="M37 37 44 27"/>':'<rect x="17" y="16" width="40" height="43" rx="7"/><circle cx="37" cy="33" r="10"/><path d="M30 50h14"/>';
  return '<svg viewBox="0 0 74 74" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">'+shape+'</svg>';
@@ -4662,12 +4711,13 @@ function renderDevicesList(){
  const grid=document.createElement('div');grid.className='device-choice-grid';
  for(const d of testbedDeviceCatalog){if(deviceConfiguration[d.id]===null)continue;
   const button=document.createElement('button');button.type='button';button.className='device-choice';button.innerHTML=deviceIllustration(d.kind);
-  const title=document.createElement('strong');title.textContent=d.title;const port=document.createElement('span');port.textContent=(d.bus==='smart'?'Smart Port ':'3-Wire ')+devicePortLabel(d);const name=document.createElement('small');name.textContent=d.id;
+  const title=document.createElement('strong');title.textContent=d.title;const port=document.createElement('span');port.textContent=(d.bus==='smart'?'Smart Port ':'3-Wire ')+devicePortLabel(d);const name=document.createElement('small');name.textContent=configuredDeviceName(d);
   button.append(title,port,name);button.onclick=()=>renderDevicePortEditor(d.id);grid.append(button);
  }
  devicesBody.append(grid);
+ devicesBody.append(deviceUiButton('Clear all devices',()=>setAllDeviceConnections(Object.fromEntries(testbedDeviceCatalog.map(d=>[d.id,null]))),'device-delete'));
  const note=document.createElement('p');note.className='device-help';note.textContent='Select a device to change its port. This testbed supports two motors and the sensors shown here.';devicesBody.append(note);
- devicesBody.append(deviceUiButton('Restore testbed connections',()=>{stopLab();deviceConfiguration=normalizedDeviceConfiguration(null);refreshDeviceConnections();writeDeviceConfigurationCode();saveAutosave();renderDevicesList();},'device-secondary'));
+ devicesBody.append(deviceUiButton('Restore testbed connections',()=>{setAllDeviceConnections(normalizedDeviceConfiguration(null));},'device-secondary'));
 }
 function renderDevicePicker(){
  devicesBody.replaceChildren();devicesBody.append(deviceUiButton('‹ Back',renderDevicesList,'device-secondary'));
@@ -4681,12 +4731,12 @@ function renderDevicePortEditor(id){
  const d=testbedDeviceCatalog.find(d=>d.id===id);let chosen=deviceConfiguration[id];
  devicesBody.replaceChildren();devicesBody.append(deviceUiButton('‹ Devices',renderDevicesList,'device-secondary'));
  const heading=document.createElement('h3');heading.textContent=d.title;devicesBody.append(heading);
- const name=document.createElement('label');name.className='device-name';name.textContent='Python device name';const field=document.createElement('input');field.value=id;field.readOnly=true;name.append(field);devicesBody.append(name);
+ const name=document.createElement('label');name.className='device-name';name.textContent='Python device name (automatic)';const field=document.createElement('input');field.value=configuredDeviceName(d);field.readOnly=true;name.append(field);devicesBody.append(name);
  const help=document.createElement('p');help.className='device-help';help.textContent=d.kind==='sonar'?'Choose a pair of adjacent 3-Wire ports.':'Select a '+(d.bus==='smart'?'Smart Port (1–21).':'3-Wire Port (A–H).');devicesBody.append(help);
  const ports=document.createElement('div');ports.className='device-port-grid';const values=d.bus==='smart'?Array.from({length:21},(_,i)=>i+1):d.kind==='sonar'?['A','C','E','G']:Array.from('ABCDEFGH');
  const message=document.createElement('p');message.className='device-form-message';message.setAttribute('role','status');
  const done=deviceUiButton('Done',()=>{const error=setDeviceConnection(id,chosen);if(error){message.textContent=error;return;}renderDevicesList();byId('workspaceMessage').textContent=d.title+' connected to '+devicePortLabel(d)+'.';},'device-done');done.disabled=chosen===null;
- for(const port of values){const error=validateDevicePort(id,port);const button=deviceUiButton(connectedPorts(d,port).join('–'),()=>{chosen=port;for(const sibling of ports.children)sibling.setAttribute('aria-pressed','false');button.setAttribute('aria-pressed','true');message.textContent='Selected '+connectedPorts(d,port).join('–');done.disabled=false;},'device-port');button.disabled=!!error;button.title=error||'Select port '+port;button.setAttribute('aria-pressed',String(port===chosen));ports.append(button);}
+ for(const port of values){const error=validateDevicePort(id,port);const button=deviceUiButton(connectedPorts(d,port).join('–'),()=>{chosen=port;field.value=configuredDeviceName(d,{...deviceConfiguration,[id]:port});for(const sibling of ports.children)sibling.setAttribute('aria-pressed','false');button.setAttribute('aria-pressed','true');message.textContent='Selected '+connectedPorts(d,port).join('–');done.disabled=false;},'device-port');button.disabled=!!error;button.title=error||'Select port '+port;button.setAttribute('aria-pressed',String(port===chosen));ports.append(button);}
  devicesBody.append(ports,message);
  const actions=document.createElement('div');actions.className='device-form-actions';actions.append(deviceUiButton('Cancel',renderDevicesList,'device-secondary'),done);devicesBody.append(actions);
  if(deviceConfiguration[id]!==null)devicesBody.append(deviceUiButton('Delete device',()=>{setDeviceConnection(id,null);renderDevicesList();},'device-delete'));
@@ -4697,6 +4747,7 @@ window.addEventListener("beforeunload",saveAutosave);
 </script>
 </body>
 </html>
+
 
 
 

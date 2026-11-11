@@ -614,6 +614,12 @@ html[data-theme="dark"] #pythonWorkspace .filename-actions>#stepModeToggle[aria-
  .commands-panel{max-height:var(--fitted-menu-height,calc(100dvh - 100px))}
  .testbed{width:min(100%,calc(var(--fitted-simulator-height,600px)*780/470));min-height:0;margin-inline:auto}
 }
+
+/* Larger grid coordinates in the enlarged Brain view. */
+.large-screen .numbered-screen.has-grid{grid-template-columns:38px minmax(0,1fr);grid-template-rows:38px auto}
+.large-screen .grid-ruler-x span,.large-screen .grid-ruler-y span{font-size:13px;font-weight:700;line-height:1.1}
+.large-screen .grid-ruler-x span{bottom:8px}
+.large-screen .grid-ruler-y span{right:7px}
 </style>
 </head>
 

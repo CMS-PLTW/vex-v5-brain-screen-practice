@@ -620,6 +620,31 @@ html[data-theme="dark"] #pythonWorkspace .filename-actions>#stepModeToggle[aria-
 .large-screen .grid-ruler-x span,.large-screen .grid-ruler-y span{font-size:13px;font-weight:700;line-height:1.1}
 .large-screen .grid-ruler-x span{bottom:8px}
 .large-screen .grid-ruler-y span{right:7px}
+
+/* Chromebook layout: reserve readable space for the toolbox. */
+@media(min-width:901px){
+ .main{grid-template-columns:clamp(260px,23vw,330px) minmax(0,1fr)}
+ .center{min-width:0}
+}
+@media(min-width:901px) and (max-width:1100px){
+ .center{display:flex;flex-direction:column;width:100%;gap:12px}
+ .center>.workspace,.center>.testbed-wrap{width:100%;min-width:0}
+ .pane-divider{display:none}
+}
+@media(max-width:1400px){
+ .commands-panel{box-sizing:border-box;max-width:100%}
+ .commands-panel .code-category{overflow-x:hidden}
+ .commands-panel .command-option-row{grid-template-columns:minmax(0,1fr) 49px}
+ .commands-panel .command-option-row>.command{
+  white-space:pre-wrap;overflow-wrap:anywhere;word-break:normal;overflow-x:visible;
+  height:auto;padding:8px 7px;text-align:left;text-indent:0;font-size:12px;line-height:1.5;
+ }
+ .commands-panel .command-option-row>.command span{white-space:inherit;overflow-wrap:inherit}
+ .commands-panel .motor-target{flex-wrap:wrap;gap:5px}
+ .commands-panel .motor-target select{max-width:100%;min-width:0}
+ .commands-panel .code-category>summary{overflow-wrap:anywhere;padding-left:9px}
+}
+@media(max-width:900px){.main>.commands-panel{width:100%;max-width:100%;flex-shrink:0}}
 </style>
 </head>
 

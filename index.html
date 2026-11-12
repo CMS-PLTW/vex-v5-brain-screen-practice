@@ -1474,11 +1474,11 @@ function applyProjectData(data={},options={}){
     :"My Brain Screen";
 
   const incomingCode=isVexPython?data.textContent:typeof data.pythonCode==="string"?data.pythonCode:typeof data.code==="string"?data.code:starterCode();
-  const importedSetup=importDeviceConnections(incomingCode,!!options.useTestbedDefaults,simulatorData.deviceConfiguration);
+  const importedSetup=importDeviceConnections(incomingCode,!!options.useTestbedDefaults,simulatorData.deviceConfiguration,simulatorData.deviceConfiguration?[]:Array.isArray(data.robotConfig)?data.robotConfig:Array.isArray(data.rconfig)?data.rconfig:[]);
   deviceConfiguration=normalizedDeviceConfiguration(simulatorData.deviceConfiguration || importedSetup.configuration);
   deviceConstructorExtras=simulatorData.deviceConstructorExtras || importedSetup.extras;
   deviceImportWarnings=importedSetup.warnings;
-  if(isVexPython&&!simulatorData.deviceConfiguration&&!Object.values(importedSetup.configuration).some(port=>port!==null)&&(Array.isArray(data.robotConfig)&&data.robotConfig.length||Array.isArray(data.rconfig)&&data.rconfig.length))deviceImportWarnings.push('Device metadata was found without supported Python port declarations; check the Devices panel');
+
   refreshDeviceConnections();
   projectName.value=typeof simulatorData.name==="string"?simulatorData.name:fileProjectName;
   pythonRegionFold=null;
@@ -4583,11 +4583,31 @@ window.visualViewport?.addEventListener('resize',scheduleViewportFit);
 scheduleViewportFit();
 
 function emptyDeviceConnections(){return Object.fromEntries(testbedDeviceCatalog.map(d=>[d.id,null]));}
-function importDeviceConnections(source,allowDefaults=false,saved=null){
+function importDeviceConnections(source,allowDefaults=false,saved=null,metadata=[]){
  const configuration=emptyDeviceConnections(),aliases={},extras={},warnings=[];
+ const metadataSource=[];
+ const constructors={motor:'Motor',bumper:'Bumper',limitswitch:'Limit',limit:'Limit',potentiometer:'Potentiometer',pot:'Potentiometer',light:'Light',lightsensor:'Light',linetracker:'Line',line:'Line',rangefinder:'Sonar',sonar:'Sonar',ultrasonic:'Sonar',led:'Led',digitalout:'DigitalOut'};
+ for(const record of Array.isArray(metadata)?metadata:[]){
+  if(!record||typeof record!=='object')continue;
+  const name=record.name;
+  const type=constructors[String(record.deviceType||'').toLowerCase()]||constructors[String(record.deviceClass||'').toLowerCase()];
+  if(!type){warnings.push(String(name||record.deviceType||'Device')+': device type is not simulated');continue;}
+  if(typeof name!=='string'||!/^\w+$/.test(name)){warnings.push('A device has an invalid name');continue;}
+  const raw=Array.isArray(record.port)?record.port[0]:record.port;
+  if(type!=='Motor'&&record.triportSourcePort!=null&&Number(record.triportSourcePort)!==22){warnings.push(name+': external 3-Wire expanders are not simulated');continue;}
+  const numeric=Number(raw),port=type==='Motor'?numeric:/^[A-H]$/i.test(String(raw))?String(raw).toLowerCase():numeric>=1&&numeric<=8?String.fromCharCode(96+numeric):'';
+  if(!port){warnings.push(name+': invalid port in saved device configuration');continue;}
+  let settings='';
+  if(type==='Motor'){
+   const gear={ratio6_1:'RATIO_6_1',ratio18_1:'RATIO_18_1',ratio36_1:'RATIO_36_1'}[record.setting?.gear];
+   if(gear)settings=', GearSetting.'+gear+', '+(String(record.setting?.reversed).toLowerCase()==='true'?'True':'False');
+  }
+  metadataSource.push(name+' = '+type+'('+(type==='Motor'?'Ports.PORT'+port:'brain.three_wire_port.'+port)+settings+')');
+ }
+ const sourceToRead=metadataSource.join('\n')+'\n'+source;
  const matcher=/^\s*([A-Za-z_]\w*)\s*=\s*(Motor|Bumper|Limit|Light|Line|Potentiometer|Led|DigitalOut|Sonar)\s*\(([^\n]*)\)[ \t]*(?:#.*)?$/gm;
- for(const match of source.matchAll(matcher)){
-  const [whole,name,type,args]=match;const motor=type==='Motor';
+ for(const match of sourceToRead.matchAll(matcher)){
+  const [whole,name,type,args]=match;if(Object.prototype.hasOwnProperty.call(aliases,name))continue;const motor=type==='Motor';
   const portMatch=args.match(motor?/^\s*Ports\.PORT(\d+)\b/:/^\s*brain\.three_wire_port\.([a-h])\b/i);
   if(!portMatch){warnings.push(name+': unsupported port expression');continue;}
   const port=motor?Number(portMatch[1]):portMatch[1].toUpperCase();
@@ -4777,6 +4797,7 @@ window.addEventListener("beforeunload",saveAutosave);
 </script>
 </body>
 </html>
+
 
 
 

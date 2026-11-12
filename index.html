@@ -961,7 +961,9 @@ const testbedDeviceCatalog=[
  {id:'led_f',title:'LED',kind:'led',bus:'wire',port:'F',constructor:'Led',selector:'led'},
  {id:'ultrasonic_g',title:'Ultrasonic',kind:'sonar',bus:'wire',port:'G',constructor:'Sonar',selector:'sonar'}
 ];
-let deviceConfiguration=Object.fromEntries(testbedDeviceCatalog.map(d=>[d.id,d.port]));
+let deviceConfiguration=Object.fromEntries(testbedDeviceCatalog.map(d=>[d.id,null]));
+let deviceConstructorExtras={};
+let deviceImportWarnings=[];
 
 const pythonBlockFolds=new Map();
 let pythonFoldSequence=0;
@@ -1419,7 +1421,8 @@ function projectData(){
     blocks:cloneBlocks(),
     practiceGrid,
     vexProjectMetadata,
-    deviceConfiguration:{...deviceConfiguration}
+    deviceConfiguration:{...deviceConfiguration},
+    deviceConstructorExtras:{...deviceConstructorExtras}
   };
 }
 
@@ -1453,7 +1456,8 @@ function vexProjectFileData(){
       activeMode,
       blocks:cloneBlocks(),
       practiceGrid,
-      deviceConfiguration:{...deviceConfiguration}
+      deviceConfiguration:{...deviceConfiguration},
+    deviceConstructorExtras:{...deviceConstructorExtras}
     }
   };
 }
@@ -1469,19 +1473,16 @@ function applyProjectData(data={},options={}){
     ?options.fileName.replace(/\.v5python$/i,"")
     :"My Brain Screen";
 
-  deviceConfiguration=normalizedDeviceConfiguration(simulatorData.deviceConfiguration);
+  const incomingCode=isVexPython?data.textContent:typeof data.pythonCode==="string"?data.pythonCode:typeof data.code==="string"?data.code:starterCode();
+  const importedSetup=importDeviceConnections(incomingCode,!!options.useTestbedDefaults,simulatorData.deviceConfiguration);
+  deviceConfiguration=normalizedDeviceConfiguration(simulatorData.deviceConfiguration || importedSetup.configuration);
+  deviceConstructorExtras=simulatorData.deviceConstructorExtras || importedSetup.extras;
+  deviceImportWarnings=importedSetup.warnings;
+  if(isVexPython&&!simulatorData.deviceConfiguration&&!Object.values(importedSetup.configuration).some(port=>port!==null)&&(Array.isArray(data.robotConfig)&&data.robotConfig.length||Array.isArray(data.rconfig)&&data.rconfig.length))deviceImportWarnings.push('Device metadata was found without supported Python port declarations; check the Devices panel');
   refreshDeviceConnections();
-  projectName.value=typeof simulatorData.name==="string"
-    ?simulatorData.name
-    :fileProjectName;
+  projectName.value=typeof simulatorData.name==="string"?simulatorData.name:fileProjectName;
   pythonRegionFold=null;
-  editor.value=isVexPython
-    ?data.textContent
-    :typeof data.pythonCode==="string"
-      ?data.pythonCode
-      :typeof data.code==="string"
-        ?data.code
-        :starterCode();
+  editor.value=rewriteDeviceIdentifiers(incomingCode,importedSetup.aliases);
   collapseGeneratedRegion();
   writeDeviceConfigurationCode();
   vexProjectMetadata=isVexPython
@@ -3607,17 +3608,19 @@ byId("newBtn").addEventListener("click",()=>{
 byId("exampleSelect").addEventListener("change",event=>{
  if(event.target.value.startsWith('practice_')){
   const example=practiceCodes[Number(event.target.value.slice(9))];if(!example)return;
-  stopLab();applyProjectData({name:example.name+' (Practice)',activeMode:'python',pythonCode:example.code,blocks:[],practiceGrid:''});
+  stopLab();applyProjectData({name:example.name+' (Practice)',activeMode:'python',pythonCode:example.code,blocks:[],practiceGrid:''},{useTestbedDefaults:true});
   hideCodeCheck();clearErrorHighlights();byId('workspaceMessage').textContent=example.name+' opened. Press Run when ready.';event.target.value='';saveAutosave();return;
  }
  if(event.target.value.startsWith('testbed_')){
   const example=testbedStarterCodes[Number(event.target.value.slice(8))];if(!example)return;
-  stopLab();applyProjectData({name:example.name+' (Testbed)',activeMode:'python',pythonCode:example.code,blocks:[],practiceGrid:''});
+  stopLab();applyProjectData({name:example.name+' (Testbed)',activeMode:'python',pythonCode:example.code,blocks:[],practiceGrid:''},{useTestbedDefaults:true});
   hideCodeCheck();clearErrorHighlights();byId('workspaceMessage').textContent=example.name+' opened. Press Run when ready.';saveAutosave();return;
  }
  const selected=demoExampleLookup[event.target.value];if(!selected)return;
  stopLab();switchMode('python',{run:false});const old=editor.value;
- pythonRegionFold=null;editor.value=demoExampleCode(selected);collapseGeneratedRegion();writeDeviceConfigurationCode();
+ pythonRegionFold=null;const demoSource=demoExampleCode(selected);
+ const demoSetup=importDeviceConnections(demoSource,true);deviceConfiguration=demoSetup.configuration;deviceConstructorExtras=demoSetup.extras;refreshDeviceConnections();
+ editor.value=rewriteDeviceIdentifiers(demoSource,demoSetup.aliases);collapseGeneratedRegion();writeDeviceConfigurationCode();
  recordPythonChange(old);previousEditorValue=editor.value;updateLineNumbers();
  practiceGrid='';updateGridSelection();updateInfo();
  event.target.value='';startDelayedRun();
@@ -3656,7 +3659,7 @@ fileInput.addEventListener("change",async event=>{
     const data=JSON.parse(await file.text());
     applyProjectData(data,{fileName:file.name});
     runImmediately();
-    byId("workspaceMessage").textContent="Opened "+file.name+" successfully.";
+    byId("workspaceMessage").textContent="Opened "+file.name+". Loaded "+Object.values(deviceConfiguration).filter(port=>port!==null).length+" device connections."+(deviceImportWarnings.length?' Review unsupported devices: '+deviceImportWarnings.join('; '):'');
   }
   catch{
     byId("workspaceMessage").textContent="Could not open project file.";
@@ -4579,6 +4582,33 @@ window.addEventListener('resize',scheduleViewportFit);
 window.visualViewport?.addEventListener('resize',scheduleViewportFit);
 scheduleViewportFit();
 
+function emptyDeviceConnections(){return Object.fromEntries(testbedDeviceCatalog.map(d=>[d.id,null]));}
+function importDeviceConnections(source,allowDefaults=false,saved=null){
+ const configuration=emptyDeviceConnections(),aliases={},extras={},warnings=[];
+ const matcher=/^\s*([A-Za-z_]\w*)\s*=\s*(Motor|Bumper|Limit|Light|Line|Potentiometer|Led|DigitalOut|Sonar)\s*\(([^\n]*)\)[ \t]*(?:#.*)?$/gm;
+ for(const match of source.matchAll(matcher)){
+  const [whole,name,type,args]=match;const motor=type==='Motor';
+  const portMatch=args.match(motor?/^\s*Ports\.PORT(\d+)\b/:/^\s*brain\.three_wire_port\.([a-h])\b/i);
+  if(!portMatch){warnings.push(name+': unsupported port expression');continue;}
+  const port=motor?Number(portMatch[1]):portMatch[1].toUpperCase();
+  const candidates=testbedDeviceCatalog.filter(d=>motor?d.kind==='motor':(type==='DigitalOut'?d.kind==='led':d.constructor===type));
+  let device=candidates.find(d=>saved&&saved[d.id]===port&&configuration[d.id]===null)||candidates.find(d=>d.id===name&&configuration[d.id]===null);
+  if(!device&&motor&&/right/i.test(name))device=candidates.find(d=>d.id==='right_motor'&&configuration[d.id]===null);
+  if(!device)device=candidates.find(d=>configuration[d.id]===null);
+  if(!device){warnings.push(name+': more devices of this type than the testbed supports');continue;}
+  const error=validateDevicePort(device.id,port,configuration);
+  if(error){warnings.push(name+': '+error);continue;}
+  configuration[device.id]=port;aliases[name]=device.id;
+  const tail=args.slice(portMatch[0].length).trim();if(tail.startsWith(','))extras[device.id]=tail;
+ }
+ if(allowDefaults)for(const d of testbedDeviceCatalog){
+  if(configuration[d.id]===null&&new RegExp('\\b'+d.id+'\\s*\\.').test(source)&&!validateDevicePort(d.id,d.port,configuration))configuration[d.id]=d.port;
+ }
+ const unsupported=[...source.matchAll(/^\s*([A-Za-z_]\w*)\s*=\s*(Controller|Drivetrain|MotorGroup|Inertial|Vision|AiVision|Optical|Distance|Rotation|Gps|Gyro|Encoder|Servo)\s*\(/gm)];
+ for(const match of unsupported)warnings.push(match[1]+': '+match[2]+' is not simulated');
+ return {configuration,aliases,extras,warnings};
+}
+
 function connectedPorts(device,port){
  if(port===null)return [];
  if(device.kind==='sonar')return [port,String.fromCharCode(port.charCodeAt(0)+1)];
@@ -4647,7 +4677,7 @@ function rewriteDeviceIdentifiers(source,replacements){
  return result;
 }
 function configurationDeclarations(){
- return testbedDeviceCatalog.filter(d=>deviceConfiguration[d.id]!==null).map(d=>configuredDeviceName(d)+' = '+d.constructor+'('+(d.bus==='smart'?'Ports.PORT'+deviceConfiguration[d.id]:'brain.three_wire_port.'+deviceConfiguration[d.id].toLowerCase())+')').join('\n');
+ return testbedDeviceCatalog.filter(d=>deviceConfiguration[d.id]!==null).map(d=>configuredDeviceName(d)+' = '+d.constructor+'('+(d.bus==='smart'?'Ports.PORT'+deviceConfiguration[d.id]:'brain.three_wire_port.'+deviceConfiguration[d.id].toLowerCase())+(deviceConstructorExtras[d.id]||'')+')').join('\n');
 }
 function writeDeviceConfigurationCode(previousConfiguration=deviceConfiguration){
  let source=getFullPythonCode();
@@ -4673,10 +4703,10 @@ function writeDeviceConfigurationCode(previousConfiguration=deviceConfiguration)
 function setDeviceConnection(id,port){
  const error=validateDevicePort(id,port);if(error)return error;
  const previous={...deviceConfiguration};
- stopLab();deviceConfiguration[id]=port;refreshDeviceConnections();writeDeviceConfigurationCode(previous);saveAutosave();return '';
+ stopLab();deviceConfiguration[id]=port;if(port===null)delete deviceConstructorExtras[id];refreshDeviceConnections();writeDeviceConfigurationCode(previous);saveAutosave();return '';
 }
 function setAllDeviceConnections(configuration){
- const previous={...deviceConfiguration};stopLab();deviceConfiguration=configuration;
+ const previous={...deviceConfiguration};stopLab();deviceConfiguration=configuration;deviceConstructorExtras={};
  refreshDeviceConnections();writeDeviceConfigurationCode(previous);saveAutosave();renderDevicesList();
 }
 function runtimeDeviceCode(source){
@@ -4747,6 +4777,7 @@ window.addEventListener("beforeunload",saveAutosave);
 </script>
 </body>
 </html>
+
 
 
 

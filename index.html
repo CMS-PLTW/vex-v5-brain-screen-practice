@@ -4795,8 +4795,69 @@ refreshDeviceConnections();
 
 window.addEventListener("beforeunload",saveAutosave);
 </script>
+
+<!-- START preview: device-feedback -->
+<style>
+.testbed .device.device-disconnected{opacity:1}
+.testbed .device.device-disconnected .hardware{opacity:.28;filter:grayscale(1)}
+.testbed .device.device-disconnected strong{background:#5a6170;color:#f1f5f9}
+.device-connection-badge{display:block;margin:2px auto 0;padding:2px 3px;border-radius:4px;background:#fbe4e4;color:#923c3c;font:600 9px/1.2 Arial,sans-serif;max-width:100%;box-sizing:border-box}
+.device-connection-badge[hidden]{display:none}
+.testbed .device.device-line-active .hardware{outline:3px solid #b8e13e;outline-offset:3px;border-radius:6px;box-shadow:0 0 14px #b8e178}
+.device-feedback-status{display:block;margin-top:5px;padding:4px 7px;border-radius:5px;background:#e8f6bd;color:#304513;font:600 11px/1.3 Arial,sans-serif;white-space:normal}
+.device-feedback-status[hidden]{display:none}
+.feedback-slider-disabled{opacity:.5}
+html[data-theme="dark"] .device-connection-badge{background:#4e3037;color:#ffd3d8}
+html[data-theme="dark"] .device-feedback-status{background:#384d25;color:#e3ffc3}
+
+</style>
+<script>
+/* Preview feature 3: device connection and execution feedback. */
+let feedbackDeviceTimer=null;
+const feedbackStatus=document.createElement('span');feedbackStatus.className='device-feedback-status';feedbackStatus.hidden=true;feedbackStatus.setAttribute('aria-live','polite');
+wrap.querySelector('.testbed-heading').append(feedbackStatus);
+function refreshDeviceFeedback(){
+ for(const device of testbedDeviceCatalog){
+  const element=board.querySelector('.device.'+device.selector);if(!element)continue;
+  const disconnected=deviceConfiguration[device.id]===null;
+  let badge=element.querySelector('.device-connection-badge');
+  if(!badge){badge=document.createElement('span');badge.className='device-connection-badge';element.append(badge);}
+  badge.textContent='Not connected';badge.hidden=!disconnected;
+  if(disconnected)element.querySelector('strong').textContent=device.title;
+ }
+ for(const [element,label] of sensorSliderPairs){const disconnected=element.classList.contains('device-disconnected');label.querySelector('input').disabled=disconnected;label.classList.toggle('feedback-slider-disabled',disconnected);}
+}
+const feedbackRefresh=refreshDeviceConnections;
+refreshDeviceConnections=function(){feedbackRefresh();refreshDeviceFeedback();};
+function clearDeviceFeedback(){
+ clearTimeout(feedbackDeviceTimer);board.querySelectorAll('.device-line-active').forEach(el=>el.classList.remove('device-line-active'));
+ feedbackStatus.hidden=true;
+}
+function showLineDeviceFeedback(node){
+ const code=runtimeDeviceCode(node.text||node.condition||node.rangeExpression||'');
+ const used=testbedDeviceCatalog.filter(d=>new RegExp('\\b'+d.id+'\\s*\\.').test(stripPythonInlineComment(code)));
+ if(!used.length)return;
+ clearDeviceFeedback();
+ for(const d of used)board.querySelector('.device.'+d.selector)?.classList.add('device-line-active');
+ feedbackStatus.textContent=used.map(d=>configuredDeviceName(d)+' · '+devicePortLabel(d)).join(' / ');feedbackStatus.hidden=false;
+ if(!steppingEnabled)feedbackDeviceTimer=setTimeout(clearDeviceFeedback,600);
+}
+const feedbackTrace=tracePythonLine;
+tracePythonLine=async function(node,context){if(context.runId===programRunId)showLineDeviceFeedback(node);return feedbackTrace(node,context);};
+const feedbackClear=clearExecutionHighlight;
+clearExecutionHighlight=function(){feedbackClear();clearDeviceFeedback();};
+board.addEventListener('pointerdown',event=>{
+ const element=event.target.closest('.device-disconnected');if(!element)return;
+ event.preventDefault();event.stopImmediatePropagation();
+ byId('workspaceMessage').textContent='This device is not connected. Open Devices to assign a port.';
+},true);
+refreshDeviceFeedback();
+
+</script>
+<!-- END preview: device-feedback -->
 </body>
 </html>
+
 
 
 

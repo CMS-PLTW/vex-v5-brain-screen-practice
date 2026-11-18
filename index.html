@@ -4855,6 +4855,103 @@ refreshDeviceFeedback();
 
 </script>
 <!-- END preview: device-feedback -->
+
+<!-- START preview: recovery-history -->
+<style>
+.classroom-dialog{width:min(880px,calc(100vw - 24px));max-height:calc(100dvh - 28px);padding:0;box-sizing:border-box;border:1px solid #9aadc6;border-radius:12px;background:#f8fafc;color:#263449;box-shadow:0 18px 60px #0f172a55;font:13px/1.5 Arial,sans-serif}
+.classroom-dialog::backdrop{background:#12233666}
+.classroom-dialog>header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:#295b8e;color:white;position:sticky;top:0;z-index:1}
+.classroom-dialog h2{margin:0;font-size:20px}
+.classroom-dialog .classroom-dialog-close{border:0;background:transparent;color:white;font-size:27px;line-height:1;cursor:pointer}
+.classroom-dialog-help{margin:12px 18px;color:#52647b;font-size:12px}
+.classroom-dialog>footer{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:10px;padding:14px 18px;border-top:1px solid #cbd5e1}
+.classroom-dialog button{font-family:Arial,sans-serif;cursor:pointer}
+.classroom-dialog footer button,.recovery-restore{padding:9px 13px;border-radius:6px;border:1px solid #9cb5d1;background:#dfebf7;color:#254c76;font-weight:600}
+.classroom-dialog button:disabled{opacity:.4;cursor:default}
+.classroom-dialog button:focus-visible{outline:3px solid #60a5fa;outline-offset:2px}
+html[data-theme="dark"] .classroom-dialog{background:#1c2635;color:#e2e8f0;border-color:#60738d}
+html[data-theme="dark"] .classroom-dialog-help{color:#b9c9dc}
+html[data-theme="dark"] .classroom-dialog footer button,html[data-theme="dark"] .recovery-restore{background:#344b67;color:#e2e8f0;border-color:#6984a5}
+#recoveryBtn{--button-bg:#e0e7f3;--button-hover:#bbcbe2;--button-ink:#405c86;--toolbar-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Cpath d='M3 11a9 9 0 1 1 2 7M3 4v7h7M12 7v6l4 2'/%3E%3C/svg%3E")}
+.recovery-layout{display:grid;grid-template-columns:245px minmax(0,1fr);gap:14px;padding:0 18px 16px}
+.recovery-list{max-height:360px;overflow:auto}
+.recovery-version{display:flex;flex-direction:column;gap:3px;width:100%;padding:10px;margin-bottom:7px;text-align:left;border:1px solid #c1cedf;border-radius:7px;background:white;color:#334155}
+.recovery-version[aria-pressed="true"]{background:#dfecfc;border-color:#4886cb}
+.recovery-version span,.recovery-version small{font-size:11px;color:#64748b}
+.recovery-detail{min-width:0}
+.recovery-selection{font-size:12px;margin:0 0 8px}
+.recovery-detail textarea{box-sizing:border-box;width:100%;height:285px;resize:vertical;padding:10px;border:1px solid #a9bdd6;border-radius:7px;background:#162234;color:#d9e7fa;font:12px/1.5 Consolas,monospace;white-space:pre;overflow:auto}
+.recovery-restore{margin-top:8px}
+.recovery-note{font-size:11px;flex:1;color:#64748b}
+html[data-theme="dark"] .recovery-version{background:#2b3d54;color:#e2e8f0;border-color:#60738d}
+html[data-theme="dark"] .recovery-version[aria-pressed="true"]{background:#335d8c}
+html[data-theme="dark"] .recovery-version span,html[data-theme="dark"] .recovery-version small,html[data-theme="dark"] .recovery-note{color:#b9c9dc}
+@media(max-width:650px){.recovery-layout{grid-template-columns:1fr}.recovery-list{max-height:150px}}
+
+</style>
+<script>
+/* Preview feature 5: recoverable browser-local versions. */
+const recoveryKey='vex-v5-screen-simulator.recovery.v1';
+let recoveryRestoring=false;
+function readRecoveryVersions(){
+ try{const data=JSON.parse(localStorage.getItem(recoveryKey)||'[]');return Array.isArray(data)?data.filter(item=>item&&item.project&&Number.isFinite(item.time)).slice(-15):[];}catch{return [];}
+}
+function recordRecoveryVersion(project,reason='Autosave',force=false){
+ if(!project||recoveryRestoring)return;
+ try{
+  const items=readRecoveryVersions(),serialized=JSON.stringify(project),last=items.at(-1);
+  if(last&&JSON.stringify(last.project)===serialized)return;
+  if(!force&&last&&Date.now()-last.time<30000)return;
+  items.push({id:Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7),time:Date.now(),reason,project:JSON.parse(serialized)});
+  while(items.length>15||JSON.stringify(items).length>1800000){if(items.length===1)break;items.shift();}
+  localStorage.setItem(recoveryKey,JSON.stringify(items));
+ }catch{byId('workspaceMessage').textContent='Version history could not be saved in this browser. Save a project file to keep a copy.';}
+}
+const recoverySave=saveAutosave;
+saveAutosave=function(){
+ if(autosaveReady&&!recoveryRestoring)recordRecoveryVersion(projectData());
+ recoverySave();
+};
+const recoveryApply=applyProjectData;
+applyProjectData=function(data,options){
+ if(autosaveReady&&!recoveryRestoring)recordRecoveryVersion(projectData(),'Before opening another project',true);
+ return recoveryApply(data,options);
+};
+byId('exampleSelect').addEventListener('change',()=>{if(autosaveReady)recordRecoveryVersion(projectData(),'Before opening library code',true);},true);
+const recoveryDialog=document.createElement('dialog');recoveryDialog.className='classroom-dialog recovery-dialog';recoveryDialog.setAttribute('aria-labelledby','recoveryHeading');
+recoveryDialog.innerHTML='<header><h2 id="recoveryHeading">Version history</h2><button type="button" class="classroom-dialog-close" aria-label="Close version history">×</button></header><p class="classroom-dialog-help">Up to 15 recent versions are kept on this browser and device. Preview a version before restoring it. Your current work is saved before a restore.</p><div class="recovery-layout"><div class="recovery-list" aria-label="Saved versions"></div><div class="recovery-detail"><h3 class="recovery-selection">Select a version</h3><textarea readonly aria-label="Saved code preview" spellcheck="false"></textarea><button type="button" class="recovery-restore" disabled>Restore this version</button></div></div><footer><button type="button" class="recovery-checkpoint">Save checkpoint now</button><span class="recovery-note">History stays in this browser; save a .v5python file to keep a separate copy.</span></footer>';
+document.body.append(recoveryDialog);
+recoveryDialog.querySelector('.classroom-dialog-close').onclick=()=>recoveryDialog.close();
+let recoverySelected=null;
+function renderRecoveryHistory(){
+ const list=recoveryDialog.querySelector('.recovery-list');list.replaceChildren();recoverySelected=null;
+ recoveryDialog.querySelector('.recovery-restore').disabled=true;recoveryDialog.querySelector('textarea').value='';
+ recoveryDialog.querySelector('.recovery-selection').textContent='Select a version';
+ const items=readRecoveryVersions().slice().reverse();
+ if(!items.length){const p=document.createElement('p');p.textContent='No saved versions yet.';list.append(p);}
+ for(const item of items){
+  const button=document.createElement('button');button.type='button';button.className='recovery-version';
+  const title=document.createElement('strong');title.textContent=item.project.name||'Untitled project';
+  const time=document.createElement('span');time.textContent=new Date(item.time).toLocaleString();
+  const reason=document.createElement('small');reason.textContent=item.reason;button.append(title,time,reason);
+  button.onclick=()=>{recoverySelected=item;list.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));recoveryDialog.querySelector('.recovery-selection').textContent=title.textContent+' · '+time.textContent;recoveryDialog.querySelector('textarea').value=item.project.pythonCode||item.project.code||'';recoveryDialog.querySelector('.recovery-restore').disabled=false;};
+  list.append(button);
+ }
+}
+recoveryDialog.querySelector('.recovery-checkpoint').onclick=()=>{recordRecoveryVersion(projectData(),'Manual checkpoint',true);renderRecoveryHistory();};
+recoveryDialog.querySelector('.recovery-restore').onclick=()=>{
+ if(!recoverySelected)return;
+ const selected=recoverySelected;recordRecoveryVersion(projectData(),'Before restoring a version',true);
+ stopLab();recoveryRestoring=true;
+ try{applyProjectData(selected.project);saveAutosave();}finally{recoveryRestoring=false;}
+ recoveryDialog.close();byId('workspaceMessage').textContent='Restored '+(selected.project.name||'project')+'. Your previous work is available in History. Press Run when ready.';
+};
+const recoveryButton=document.createElement('button');recoveryButton.id='recoveryBtn';recoveryButton.type='button';recoveryButton.className='toolbar-icon';recoveryButton.textContent='History';recoveryButton.title='Preview and restore recent versions';recoveryButton.setAttribute('aria-haspopup','dialog');byId('openBtn').after(recoveryButton);
+recoveryButton.onclick=()=>{closeOtherMenus(null);closeCommandOptions();renderRecoveryHistory();recoveryDialog.showModal();};
+recordRecoveryVersion(projectData(),'Preview starting point',true);
+
+</script>
+<!-- END preview: recovery-history -->
 </body>
 </html>
 

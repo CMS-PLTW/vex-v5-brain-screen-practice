@@ -4952,6 +4952,78 @@ recordRecoveryVersion(projectData(),'Preview starting point',true);
 
 </script>
 <!-- END preview: recovery-history -->
+
+<!-- START preview: import-summary -->
+<style>
+.classroom-dialog{width:min(880px,calc(100vw - 24px));max-height:calc(100dvh - 28px);padding:0;box-sizing:border-box;border:1px solid #9aadc6;border-radius:12px;background:#f8fafc;color:#263449;box-shadow:0 18px 60px #0f172a55;font:13px/1.5 Arial,sans-serif}
+.classroom-dialog::backdrop{background:#12233666}
+.classroom-dialog>header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:#295b8e;color:white;position:sticky;top:0;z-index:1}
+.classroom-dialog h2{margin:0;font-size:20px}
+.classroom-dialog .classroom-dialog-close{border:0;background:transparent;color:white;font-size:27px;line-height:1;cursor:pointer}
+.classroom-dialog-help{margin:12px 18px;color:#52647b;font-size:12px}
+.classroom-dialog>footer{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:10px;padding:14px 18px;border-top:1px solid #cbd5e1}
+.classroom-dialog button{font-family:Arial,sans-serif;cursor:pointer}
+.classroom-dialog footer button,.recovery-restore{padding:9px 13px;border-radius:6px;border:1px solid #9cb5d1;background:#dfebf7;color:#254c76;font-weight:600}
+.classroom-dialog button:disabled{opacity:.4;cursor:default}
+.classroom-dialog button:focus-visible{outline:3px solid #60a5fa;outline-offset:2px}
+html[data-theme="dark"] .classroom-dialog{background:#1c2635;color:#e2e8f0;border-color:#60738d}
+html[data-theme="dark"] .classroom-dialog-help{color:#b9c9dc}
+html[data-theme="dark"] .classroom-dialog footer button,html[data-theme="dark"] .recovery-restore{background:#344b67;color:#e2e8f0;border-color:#6984a5}
+.import-summary-dialog{width:min(680px,calc(100vw - 24px))}
+.import-summary-body{padding:2px 18px 16px}
+.import-file-name{font-weight:600;overflow-wrap:anywhere}
+.import-success,.import-attention{padding:10px 12px;border-radius:7px;font-weight:600;background:#e1f2e9;color:#246347}
+.import-attention{background:#fff0cd;color:#845514}
+.import-summary-body table{width:100%;border-collapse:collapse;font-size:12px}
+.import-summary-body th,.import-summary-body td{text-align:left;padding:9px 7px;border-bottom:1px solid #cbd5e1;overflow-wrap:anywhere}
+.import-summary-body td:nth-child(2){font-family:Consolas,monospace}
+.import-summary-body h3{font-size:14px;color:#a16419}
+.import-summary-body .classroom-dialog-help{margin:16px 0 0}
+.classroom-dialog .import-run{background:#327a56;color:white;border-color:#286447}
+html[data-theme="dark"] .import-success{background:#244c3c;color:#c0eed8}
+html[data-theme="dark"] .import-attention{background:#514222;color:#ffe6aa}
+
+</style>
+<script>
+/* Preview feature 6: review imported connections before running. */
+let importReviewPending=false,lastImportReview=null;
+const importSummaryDialog=document.createElement('dialog');importSummaryDialog.className='classroom-dialog import-summary-dialog';importSummaryDialog.setAttribute('aria-labelledby','importSummaryHeading');
+importSummaryDialog.innerHTML='<header><h2 id="importSummaryHeading">Import summary</h2><button type="button" class="classroom-dialog-close" aria-label="Close import summary">×</button></header><div class="import-summary-body"></div><footer><button type="button" class="import-edit-devices">Edit devices</button><button type="button" class="import-continue">Continue editing</button><button type="button" class="import-run">Run project</button></footer>';
+document.body.append(importSummaryDialog);
+function closeImportSummary(){importReviewPending=false;importSummaryDialog.close();}
+importSummaryDialog.querySelector('.classroom-dialog-close').onclick=closeImportSummary;
+importSummaryDialog.querySelector('.import-continue').onclick=closeImportSummary;
+importSummaryDialog.addEventListener('close',()=>{importReviewPending=false;});
+importSummaryDialog.querySelector('.import-run').onclick=()=>{closeImportSummary();startDelayedRun();};
+importSummaryDialog.querySelector('.import-edit-devices').onclick=()=>{closeImportSummary();devicesButton.click();};
+function displayImportSummary(){
+ if(!lastImportReview)return;
+ const {fileName,devices,warnings}=lastImportReview;const body=importSummaryDialog.querySelector('.import-summary-body');body.replaceChildren();
+ const name=document.createElement('p');name.className='import-file-name';name.textContent=fileName;body.append(name);
+ const status=document.createElement('p');status.className=warnings.length?'import-attention':'import-success';status.textContent=devices.length+' device'+(devices.length===1?'':'s')+' loaded · '+warnings.length+' need attention';body.append(status);
+ if(devices.length){const table=document.createElement('table');table.innerHTML='<thead><tr><th>Device</th><th>Code name</th><th>Port</th></tr></thead>';const rows=document.createElement('tbody');for(const device of devices){const row=document.createElement('tr');for(const value of [device.title,device.name,device.port]){const cell=document.createElement('td');cell.textContent=value;row.append(cell);}rows.append(row);}table.append(rows);body.append(table);}
+ else{const note=document.createElement('p');note.textContent='No supported device connections were found. If this program uses hardware, open Edit devices to add the connections.';body.append(note);}
+ if(warnings.length){const h=document.createElement('h3');h.textContent='Needs attention';body.append(h);const list=document.createElement('ul');for(const warning of warnings){const item=document.createElement('li');item.textContent=warning;list.append(item);}body.append(list);}
+ const note=document.createElement('p');note.className='classroom-dialog-help';note.textContent='The project is paused so you can review its devices before running.';body.append(note);
+ if(!importSummaryDialog.open)importSummaryDialog.showModal();
+}
+const summaryApply=applyProjectData;
+applyProjectData=function(data,options={}){
+ const result=summaryApply(data,options);
+ if(options.fileName){
+  stopLab();importReviewPending=true;
+  lastImportReview={fileName:options.fileName,devices:testbedDeviceCatalog.filter(d=>deviceConfiguration[d.id]!==null).map(d=>({title:d.title,name:configuredDeviceName(d),port:devicePortLabel(d)})),warnings:[...new Set(deviceImportWarnings)]};
+  displayImportSummary();
+ }
+ return result;
+};
+const summaryRun=runImmediately;
+runImmediately=function(...args){if(importReviewPending)return;return summaryRun(...args);};
+const summaryDevices=renderDevicesList;
+renderDevicesList=function(){summaryDevices();if(lastImportReview)devicesBody.append(deviceUiButton('Last import summary',()=>{devicesDialog.close();displayImportSummary();},'device-secondary'));};
+
+</script>
+<!-- END preview: import-summary -->
 </body>
 </html>
 
